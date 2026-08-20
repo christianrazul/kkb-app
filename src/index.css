@@ -1,0 +1,78 @@
+@import 'tailwindcss';
+
+/* KKB — "kanya-kanyang bayad". Warm, papery palette lifted from the design.
+   `ink` (#3a3128) doubles as every hairline border via opacity modifiers,
+   e.g. border-ink/10, since the design's rgba borders are all ink + alpha. */
+@theme {
+  --font-display: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Karla', ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: #3a3128;
+  --color-sand: #f6f1e7;
+  --color-sand-2: #f1e9d9;
+  --color-cream: #fdfaf4;
+
+  --color-terra: #c25e3a;
+  --color-terra-dark: #a34a2b;
+  --color-terra-light: #e08b66;
+
+  --color-mute: #a2937f;
+  --color-mute-2: #8a7b66;
+  --color-mute-3: #b3a38d;
+  --color-mute-4: #6d5f4d;
+
+  --color-pos: #3d8a4f;
+  --color-neg: #c9503f;
+  --color-pos-soft: #8fd0a0;
+  --color-neg-soft: #e8998e;
+
+  --color-cream-dim: #cbbfa9;
+}
+
+@layer base {
+  html,
+  body {
+    min-width: 0;
+    min-height: 100%;
+    overflow-x: clip;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    font-family: var(--font-body);
+    background: var(--color-sand);
+    color: var(--color-ink);
+  }
+
+  button,
+  select,
+  input {
+    font: inherit;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.rise {
+  animation: rise 0.3s ease;
+}
+.rise-fast {
+  animation: rise 0.25s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .rise-fast {
+    animation-duration: 0.01ms;
+  }
+}
