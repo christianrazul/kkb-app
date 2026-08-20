@@ -78,6 +78,12 @@ git pull --ff-only
 
 Set `IMAGE_TAG` in `.env` to a full Git commit SHA to deploy or roll back to an immutable image. Omit it to use `latest`.
 
+If the VPS already has a Caddy container on ports 80 and 443, set
+`SHARED_PROXY_NETWORK` to that proxy's Docker network. The deployment script
+then applies `compose.shared-proxy.yml`, removes KKB's host port bindings, and
+publishes the internal `kkb-web` network alias. Configure the existing Caddy
+instance to proxy `kkb-app.space` to `kkb-web:80`.
+
 ## Backups
 
 The backup container immediately creates a compressed PostgreSQL archive and repeats daily. It retains 14 days by default. These backups are on the same VPS and do not protect against total server loss.

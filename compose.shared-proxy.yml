@@ -1,0 +1,15 @@
+services:
+  web:
+    environment:
+      SITE_ADDRESS: ":80"
+    ports: !override []
+    networks:
+      default:
+      shared_edge:
+        aliases:
+          - kkb-web
+
+networks:
+  shared_edge:
+    name: ${SHARED_PROXY_NETWORK:?Set SHARED_PROXY_NETWORK in .env}
+    external: true
