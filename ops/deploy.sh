@@ -11,7 +11,7 @@ if [ ! -f .env ]; then
 fi
 
 set -- -f compose.yml -f compose.prod.yml
-if [ -n "${SHARED_PROXY_NETWORK:-}" ]; then
+if [ -n "${SHARED_PROXY_NETWORK:-}" ] || awk -F= '$1 == "SHARED_PROXY_NETWORK" && length($2) > 0 { found=1 } END { exit !found }' .env; then
   set -- "$@" -f compose.shared-proxy.yml
 fi
 
