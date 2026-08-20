@@ -31,6 +31,7 @@ spring:
           google:
             client-id: ${GOOGLE_CLIENT_ID:local-client-id}
             client-secret: ${GOOGLE_CLIENT_SECRET:local-client-secret}
+            redirect-uri: ${GOOGLE_REDIRECT_URI:{baseUrl}/login/oauth2/code/{registrationId}}
             scope:
               - openid
               - profile

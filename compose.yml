@@ -31,6 +31,7 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?Set GOOGLE_CLIENT_ID in .env}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?Set GOOGLE_CLIENT_SECRET in .env}
+      GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:5173/login/oauth2/code/google}
       APP_FRONTEND_URL: ${APP_FRONTEND_URL:-http://localhost}
       APP_TIME_ZONE: ${APP_TIME_ZONE:-Asia/Manila}
       FX_BASE_URL: ${FX_BASE_URL:-https://api.frankfurter.dev}
