@@ -19,6 +19,7 @@ printf '%s\n' "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyring
   > /etc/apt/sources.list.d/docker.list
 
 apt-get update
+apt-get remove -y docker.io docker-compose docker-compose-v2 podman-docker containerd runc
 apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 systemctl enable --now docker
 
