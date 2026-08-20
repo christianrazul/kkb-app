@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../providers/AuthProvider'
 import { Button } from '../components/Button'
 
@@ -45,6 +45,9 @@ export function Login() {
             Continue with Google
           </Button>
           <p className="mt-4 text-center text-[11.5px] leading-relaxed text-mute-3">KKB only uses your name, email, and profile picture to identify you inside shared groups.</p>
+          <p className="mt-3 text-center text-[11px] text-mute-3">
+            By continuing, you agree to the <Link to="/terms" className="underline hover:text-ink">Terms</Link> and acknowledge the <Link to="/privacy" className="underline hover:text-ink">Privacy Policy</Link>.
+          </p>
         </div>
       </div>
     </div>
