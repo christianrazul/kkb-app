@@ -208,8 +208,19 @@ export function groupView(
   const expenseRows: GroupExpenseVM[] = gExps.map((e) => {
     const d = dateBits(e.date)
     const rowCur = originalCurrency ? e.cur : cur
-    const total = originalCurrency ? e.amount : conv(e.amount, e.cur, cur)
-    const share = total / e.parts.length
+    const total = originalCurrency ? e.amount : conv(e.phpAmount, 'PHP', cur)
+    const myShare = e.shares.find((share) => share.userId === meId)
+    const payerShare = e.shares.find((share) => share.userId === e.paidBy)
+    const share = myShare
+      ? originalCurrency
+        ? myShare.originalAmount
+        : conv(myShare.phpAmount, 'PHP', cur)
+      : 0
+    const paidShare = payerShare
+      ? originalCurrency
+        ? payerShare.originalAmount
+        : conv(payerShare.phpAmount, 'PHP', cur)
+      : 0
     const payer = member(e.paidBy)
 
     let dirLabel = 'not involved'
@@ -223,7 +234,7 @@ export function groupView(
       tone = e.paidBy === meId ? 'neg' : 'pos'
     } else if (e.paidBy === meId) {
       dirLabel = 'you lent'
-      shareFmt = fmt(total - (e.parts.includes(meId) ? share : 0), rowCur)
+      shareFmt = fmt(total - paidShare, rowCur)
       tone = 'pos'
     } else if (e.parts.includes(meId)) {
       dirLabel = 'you borrowed'

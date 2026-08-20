@@ -8,6 +8,7 @@ import { useAuth } from '../providers/AuthProvider'
 import { useData } from '../providers/DataProvider'
 import { fmt } from '@/domain/currency'
 import type { CurrencyCode, Group } from '@/domain/types'
+import { todayIso } from '@/domain/format'
 
 const selectCls =
   'rounded-xl border border-ink/15 bg-white px-2 py-[11px] text-[13.5px] text-ink outline-none'
@@ -28,6 +29,9 @@ export function ExpenseModal({ group, onClose }: ExpenseModalProps) {
   const [fCur, setFCur] = useState<CurrencyCode>(cur)
   const [paidBy, setPaidBy] = useState(meId)
   const [parts, setParts] = useState<string[]>(group.members)
+  const [date, setDate] = useState(todayIso())
+  const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
   const amt = parseFloat(amount)
   const valid = desc.trim().length > 0 && amt > 0 && parts.length > 0
@@ -37,9 +41,16 @@ export function ExpenseModal({ group, onClose }: ExpenseModalProps) {
     setParts((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
 
   const submit = async () => {
-    if (!valid) return
-    await addExpense({ gid: group.id, desc: desc.trim(), amount: amt, cur: fCur, paidBy, parts })
-    onClose()
+    if (!valid || saving) return
+    setSaving(true)
+    setError(null)
+    try {
+      await addExpense({ gid: group.id, desc: desc.trim(), amount: amount.trim(), cur: fCur, paidBy, parts, date })
+      onClose()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not save the expense')
+      setSaving(false)
+    }
   }
 
   return (
@@ -83,6 +94,14 @@ export function ExpenseModal({ group, onClose }: ExpenseModalProps) {
           </select>
         </label>
 
+        <Field
+          label="EXPENSE DATE"
+          type="date"
+          value={date}
+          max={todayIso()}
+          onChange={(event) => setDate(event.target.value)}
+        />
+
         <div className={fieldLabel}>
           SPLIT EQUALLY AMONG
           <div className="flex flex-wrap gap-2">
@@ -105,8 +124,9 @@ export function ExpenseModal({ group, onClose }: ExpenseModalProps) {
           <div className="text-[12px] font-normal tracking-normal text-mute">{splitHint}</div>
         </div>
 
-        <Button onClick={submit} disabled={!valid} className="mt-1 min-h-11 whitespace-nowrap p-[13px] text-[14px]">
-          Save expense
+        {error && <div className="text-[12.5px] font-semibold text-neg">{error}</div>}
+        <Button onClick={submit} disabled={!valid || saving} className="mt-1 min-h-11 whitespace-nowrap p-[13px] text-[14px]">
+          {saving ? 'Saving…' : 'Save expense'}
         </Button>
       </div>
     </Modal>

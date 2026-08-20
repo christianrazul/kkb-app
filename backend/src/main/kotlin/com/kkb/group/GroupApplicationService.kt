@@ -1,0 +1,185 @@
+package com.kkb.group
+
+import com.kkb.auth.UserEntity
+import com.kkb.auth.UserRepository
+import com.kkb.web.ApiException
+import org.springframework.http.HttpStatus
+import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
+import java.time.Instant
+import java.util.UUID
+
+@Service
+class GroupApplicationService(
+    private val groupRepository: ExpenseGroupRepository,
+    private val groupMemberRepository: GroupMemberRepository,
+    private val groupInviteRepository: GroupInviteRepository,
+    private val userRepository: UserRepository,
+    private val clock: Clock,
+) {
+    @Transactional(readOnly = true)
+    fun list(actorUserId: UUID): List<GroupRecord> =
+        groupMemberRepository.findAllByUserIdOrderByJoinedAt(actorUserId)
+            .mapNotNull { membership -> groupRepository.findById(membership.groupId).orElse(null) }
+            .map { group -> assemble(group, actorUserId) }
+
+    @Transactional
+    fun create(actorUserId: UUID, name: String, tileColor: String): GroupRecord {
+        val now = Instant.now(clock)
+        val group = groupRepository.save(
+            ExpenseGroupEntity(
+                name = normalizeName(name),
+                tileColor = tileColor,
+                createdByUserId = actorUserId,
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+        groupMemberRepository.save(
+            GroupMemberEntity(
+                groupId = group.id,
+                userId = actorUserId,
+                role = GroupRole.OWNER.name,
+                joinedAt = now,
+            ),
+        )
+        return assemble(group, actorUserId)
+    }
+
+    @Transactional
+    fun update(groupId: UUID, actorUserId: UUID, name: String, tileColor: String): GroupRecord {
+        requireOwner(groupId, actorUserId)
+        val group = requireGroup(groupId)
+        group.name = normalizeName(name)
+        group.tileColor = tileColor
+        group.updatedAt = Instant.now(clock)
+        return assemble(groupRepository.save(group), actorUserId)
+    }
+
+    @Transactional
+    fun delete(groupId: UUID, actorUserId: UUID) {
+        requireOwner(groupId, actorUserId)
+        groupRepository.delete(requireGroup(groupId))
+    }
+
+    @Transactional
+    fun invite(groupId: UUID, actorUserId: UUID, rawEmail: String): GroupRecord {
+        requireOwner(groupId, actorUserId)
+        val email = rawEmail.trim().lowercase()
+        val now = Instant.now(clock)
+        val existingUser = userRepository.findByEmailIgnoreCase(email)
+
+        if (existingUser != null && groupMemberRepository.existsByGroupIdAndUserId(groupId, existingUser.id)) {
+            throw ApiException(HttpStatus.CONFLICT, "already_group_member", "This user is already a group member")
+        }
+
+        val invite = groupInviteRepository.findByGroupIdAndEmail(groupId, email)
+            ?: GroupInviteEntity(
+                groupId = groupId,
+                email = email,
+                invitedByUserId = actorUserId,
+                createdAt = now,
+                updatedAt = now,
+            )
+
+        invite.invitedByUserId = actorUserId
+        invite.updatedAt = now
+
+        if (existingUser == null) {
+            invite.status = GroupInviteStatus.PENDING.name
+            invite.acceptedByUserId = null
+            invite.acceptedAt = null
+        } else {
+            groupMemberRepository.save(
+                GroupMemberEntity(
+                    groupId = groupId,
+                    userId = existingUser.id,
+                    role = GroupRole.MEMBER.name,
+                    joinedAt = now,
+                ),
+            )
+            invite.status = GroupInviteStatus.ACCEPTED.name
+            invite.acceptedByUserId = existingUser.id
+            invite.acceptedAt = now
+        }
+
+        groupInviteRepository.save(invite)
+        return assemble(requireGroup(groupId), actorUserId)
+    }
+
+    @Transactional
+    fun revokeInvite(groupId: UUID, inviteId: UUID, actorUserId: UUID): GroupRecord {
+        requireOwner(groupId, actorUserId)
+        val invite = groupInviteRepository.findById(inviteId).orElseThrow {
+            ApiException(HttpStatus.NOT_FOUND, "invite_not_found", "Invitation was not found")
+        }
+        if (invite.groupId != groupId || invite.status != GroupInviteStatus.PENDING.name) {
+            throw ApiException(HttpStatus.NOT_FOUND, "invite_not_found", "Invitation was not found")
+        }
+        invite.status = GroupInviteStatus.REVOKED.name
+        invite.updatedAt = Instant.now(clock)
+        groupInviteRepository.save(invite)
+        return assemble(requireGroup(groupId), actorUserId)
+    }
+
+    @Transactional
+    fun removeMember(groupId: UUID, memberUserId: UUID, actorUserId: UUID): GroupRecord {
+        requireOwner(groupId, actorUserId)
+        val membership = groupMemberRepository.findByGroupIdAndUserId(groupId, memberUserId)
+            ?: throw ApiException(HttpStatus.NOT_FOUND, "member_not_found", "Group member was not found")
+        if (membership.role == GroupRole.OWNER.name) {
+            throw ApiException(HttpStatus.CONFLICT, "owner_cannot_be_removed", "The group owner cannot be removed")
+        }
+        groupMemberRepository.delete(membership)
+        return assemble(requireGroup(groupId), actorUserId)
+    }
+
+    private fun requireOwner(groupId: UUID, actorUserId: UUID) {
+        val membership = groupMemberRepository.findByGroupIdAndUserId(groupId, actorUserId)
+        if (membership?.role != GroupRole.OWNER.name) {
+            throw ApiException(HttpStatus.NOT_FOUND, "group_not_found", "Group was not found")
+        }
+    }
+
+    private fun requireGroup(groupId: UUID): ExpenseGroupEntity =
+        groupRepository.findById(groupId).orElseThrow {
+            ApiException(HttpStatus.NOT_FOUND, "group_not_found", "Group was not found")
+        }
+
+    private fun normalizeName(name: String): String = name.trim().takeIf { it.isNotEmpty() }
+        ?: throw ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "invalid_group_name", "Group name is required")
+
+    private fun assemble(group: ExpenseGroupEntity, actorUserId: UUID): GroupRecord {
+        val memberships = groupMemberRepository.findAllByGroupIdOrderByJoinedAt(group.id)
+        val usersById = userRepository.findAllById(memberships.map(GroupMemberEntity::userId))
+            .associateBy(UserEntity::id)
+        val actorIsOwner = memberships.any { it.userId == actorUserId && it.role == GroupRole.OWNER.name }
+        val pendingInvites = if (actorIsOwner) {
+            groupInviteRepository.findAllByGroupIdAndStatusOrderByCreatedAt(group.id, GroupInviteStatus.PENDING.name)
+        } else {
+            emptyList()
+        }
+
+        return GroupRecord(
+            group = group,
+            members = memberships.map { membership ->
+                GroupMemberRecord(membership, requireNotNull(usersById[membership.userId]))
+            },
+            pendingInvites = pendingInvites,
+            actorIsOwner = actorIsOwner,
+        )
+    }
+}
+
+data class GroupRecord(
+    val group: ExpenseGroupEntity,
+    val members: List<GroupMemberRecord>,
+    val pendingInvites: List<GroupInviteEntity>,
+    val actorIsOwner: Boolean,
+)
+
+data class GroupMemberRecord(
+    val membership: GroupMemberEntity,
+    val user: UserEntity,
+)

@@ -23,6 +23,14 @@ class GroupMemberEntity(
     @Column(name = "user_id", nullable = false)
     var userId: UUID,
 
+    @Column(nullable = false, length = 16)
+    var role: String = GroupRole.MEMBER.name,
+
     @Column(name = "joined_at", nullable = false, updatable = false)
     var joinedAt: Instant = Instant.now(),
 )
+
+enum class GroupRole {
+    OWNER,
+    MEMBER,
+}

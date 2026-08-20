@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { CurrencyCode } from '@/domain/types'
-import { RATES } from '@/domain/currency'
+import { CURRENCIES } from '@/domain/currency'
 
 const STORAGE_KEY = 'kkb.currency-display'
 const DEFAULT_CURRENCY: CurrencyCode = 'PHP'
@@ -21,7 +21,7 @@ const CurrencyContext = createContext<CurrencyContextValue | null>(null)
 function readStored(): DisplayCurrency {
   const raw = localStorage.getItem(STORAGE_KEY)
   if (raw === 'ORIGINAL') return raw
-  return raw && raw in RATES ? (raw as CurrencyCode) : DEFAULT_DISPLAY_CURRENCY
+  return raw && CURRENCIES.some(({ code }) => code === raw) ? (raw as CurrencyCode) : DEFAULT_DISPLAY_CURRENCY
 }
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {

@@ -8,6 +8,13 @@ export interface Member {
   full: string
   /** Avatar background color. */
   color: string
+  email: string
+  avatarUrl?: string
+}
+
+export interface PendingInvite {
+  id: string
+  email: string
 }
 
 export interface Group {
@@ -17,6 +24,14 @@ export interface Group {
   tile: string
   /** Member ids belonging to the group. */
   members: string[]
+  owner: boolean
+  pendingInvites: PendingInvite[]
+}
+
+export interface ExpenseShare {
+  userId: string
+  originalAmount: number
+  phpAmount: number
 }
 
 export interface Expense {
@@ -24,10 +39,13 @@ export interface Expense {
   gid: string
   desc: string
   amount: number
+  /** Immutable PHP-normalized value calculated with the locked rate. */
+  phpAmount: number
   cur: CurrencyCode
   paidBy: string
   /** Member ids the cost is split across. */
   parts: string[]
+  shares: ExpenseShare[]
   /** ISO date, YYYY-MM-DD. */
   date: string
   /** True when this record is a settlement payment rather than a shared cost. */

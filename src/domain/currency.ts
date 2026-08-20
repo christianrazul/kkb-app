@@ -1,12 +1,12 @@
 import type { CurrencyCode } from './types'
 
-/** Static demo exchange rates, expressed as "₱ per 1 unit of currency". */
-export const RATES: Record<CurrencyCode, number> = {
+/** Runtime exchange rates, expressed as "₱ per 1 unit of currency". */
+const RATES: Record<CurrencyCode, number> = {
   PHP: 1,
-  USD: 58.2,
-  EUR: 63.4,
-  JPY: 0.39,
-  SGD: 43.1,
+  USD: 1,
+  EUR: 1,
+  JPY: 1,
+  SGD: 1,
 }
 
 export const CURRENCIES: { code: CurrencyCode; label: string }[] = [
@@ -19,6 +19,14 @@ export const CURRENCIES: { code: CurrencyCode; label: string }[] = [
 
 export function rate(c: CurrencyCode): number {
   return RATES[c] ?? 1
+}
+
+export function setPhpRates(rates: Partial<Record<CurrencyCode, number>>): void {
+  for (const currency of CURRENCIES) {
+    const nextRate = rates[currency.code]
+    if (nextRate && nextRate > 0) RATES[currency.code] = nextRate
+  }
+  RATES.PHP = 1
 }
 
 /** Convert an amount between currencies via the ₱ base. */

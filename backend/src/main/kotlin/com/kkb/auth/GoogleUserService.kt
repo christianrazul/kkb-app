@@ -1,5 +1,6 @@
 package com.kkb.auth
 
+import com.kkb.group.GroupInvitationAcceptanceService
 import org.springframework.security.oauth2.core.oidc.user.OidcUser
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -8,6 +9,8 @@ import java.time.Instant
 @Service
 class GoogleUserService(
     private val userRepository: UserRepository,
+    private val groupInvitationAcceptanceService: GroupInvitationAcceptanceService,
+    private val userLoginHooks: List<UserLoginHook>,
 ) {
     @Transactional
     fun provision(principal: OidcUser): UserEntity {
@@ -22,10 +25,13 @@ class GoogleUserService(
             existingUser.displayName = displayName
             existingUser.avatarUrl = principal.picture
             existingUser.updatedAt = now
-            return userRepository.save(existingUser)
+            val savedUser = userRepository.save(existingUser)
+            groupInvitationAcceptanceService.acceptPendingInvitations(savedUser)
+            userLoginHooks.forEach { hook -> hook.afterLogin(savedUser) }
+            return savedUser
         }
 
-        return userRepository.save(
+        val savedUser = userRepository.save(
             UserEntity(
                 googleSubject = googleSubject,
                 email = email,
@@ -35,5 +41,12 @@ class GoogleUserService(
                 updatedAt = now,
             ),
         )
+        groupInvitationAcceptanceService.acceptPendingInvitations(savedUser)
+        userLoginHooks.forEach { hook -> hook.afterLogin(savedUser) }
+        return savedUser
     }
+}
+
+interface UserLoginHook {
+    fun afterLogin(user: UserEntity)
 }

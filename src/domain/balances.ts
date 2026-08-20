@@ -8,12 +8,17 @@ import type { CurrencyCode, Expense, Group, Settlement } from './types'
 export function netOf(memberId: string, exps: Expense[], cur: CurrencyCode): number {
   let net = 0
   for (const e of exps) {
-    const total = conv(e.amount, e.cur, cur)
-    const share = total / e.parts.length
-    if (e.paidBy === memberId) {
-      net += total - (e.parts.includes(memberId) ? share : 0)
-    } else if (e.parts.includes(memberId)) {
-      net -= share
+    const total = conv(e.phpAmount, 'PHP', cur)
+    if (e.settle) {
+      if (e.paidBy === memberId) net += total
+      if (e.parts[0] === memberId) net -= total
+      continue
+    }
+
+    if (e.paidBy === memberId) net += total
+    const share = e.shares.find((item) => item.userId === memberId)
+    if (share) {
+      net -= conv(share.phpAmount, 'PHP', cur)
     }
   }
   return net
@@ -31,9 +36,21 @@ export function pairNet(
 ): number {
   let net = 0
   for (const e of exps) {
-    const share = conv(e.amount, e.cur, cur) / e.parts.length
-    if (e.paidBy === meId && e.parts.includes(otherId)) net += share
-    if (e.paidBy === otherId && e.parts.includes(meId)) net -= share
+    if (e.settle) {
+      const total = conv(e.phpAmount, 'PHP', cur)
+      if (e.paidBy === meId && e.parts[0] === otherId) net += total
+      if (e.paidBy === otherId && e.parts[0] === meId) net -= total
+      continue
+    }
+
+    if (e.paidBy === meId) {
+      const share = e.shares.find((item) => item.userId === otherId)
+      if (share) net += conv(share.phpAmount, 'PHP', cur)
+    }
+    if (e.paidBy === otherId) {
+      const share = e.shares.find((item) => item.userId === meId)
+      if (share) net -= conv(share.phpAmount, 'PHP', cur)
+    }
   }
   return net
 }

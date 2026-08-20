@@ -18,6 +18,7 @@ function useHeaderTitle(): string {
 
 export function AppLayout() {
   const { displayCur, setDisplayCur } = useCurrency()
+  const { error, refresh } = useData()
   const title = useHeaderTitle()
   const [navOpen, setNavOpen] = useState(false)
   const menuButtonRef = useRef<HTMLButtonElement>(null)
@@ -75,6 +76,14 @@ export function AppLayout() {
           </label>
         </header>
         <div className="flex-1 overflow-y-auto px-4 pt-4 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 lg:px-9 lg:pb-10">
+          {error && (
+            <div className="mx-auto mb-4 flex max-w-[880px] items-center justify-between gap-3 rounded-[14px] border border-neg/20 bg-neg/5 px-4 py-3 text-[13px] font-semibold text-neg">
+              <span>{error}</span>
+              <button type="button" onClick={() => void refresh()} className="cursor-pointer whitespace-nowrap underline underline-offset-2">
+                Try again
+              </button>
+            </div>
+          )}
           <Outlet />
         </div>
       </main>

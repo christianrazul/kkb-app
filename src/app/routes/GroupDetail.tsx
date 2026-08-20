@@ -10,13 +10,14 @@ import { toneText } from '../components/tone'
 import { ExpenseModal } from '../components/ExpenseModal'
 import { SettleModal } from '../components/SettleModal'
 import { eps } from '@/domain/currency'
+import { InviteModal } from '../components/InviteModal'
 
 export function GroupDetail() {
   const { groupId } = useParams()
   const { meId } = useAuth()
   const { cur, displayCur } = useCurrency()
   const { members, expenses, groupById, loaded } = useData()
-  const [modal, setModal] = useState<'expense' | 'settle' | null>(null)
+  const [modal, setModal] = useState<'expense' | 'settle' | 'members' | null>(null)
 
   const group = groupId ? groupById(groupId) : undefined
   if (loaded && !group) return <Navigate to="/dashboard" replace />
@@ -41,6 +42,11 @@ export function GroupDetail() {
           <div className="mt-0.5 text-[12.5px] text-mute">{vm.meta}</div>
         </div>
         <div className="col-span-2 grid grid-cols-2 gap-2.5 sm:ml-auto sm:flex">
+          {group.owner && (
+            <Button variant="secondary" onClick={() => setModal('members')} className="min-h-11 w-full whitespace-nowrap px-4 py-[11px] text-[13px] sm:w-auto">
+              Members
+            </Button>
+          )}
           <Button variant="secondary" onClick={() => setModal('settle')} className="min-h-11 w-full whitespace-nowrap px-4 py-[11px] text-[13px] sm:w-auto sm:px-[18px]">
             Settle up
           </Button>
@@ -84,6 +90,7 @@ export function GroupDetail() {
 
       {modal === 'expense' && <ExpenseModal group={group} onClose={() => setModal(null)} />}
       {modal === 'settle' && <SettleModal group={group} onClose={() => setModal(null)} />}
+      {modal === 'members' && <InviteModal group={group} onClose={() => setModal(null)} />}
     </div>
   )
 }

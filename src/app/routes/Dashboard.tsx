@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { useAuth } from '../providers/AuthProvider'
 import { useCurrency } from '../providers/CurrencyProvider'
 import { useData } from '../providers/DataProvider'
@@ -6,12 +7,15 @@ import { dashboardView } from '../selectors'
 import { Avatar } from '../components/Avatar'
 import { toneText } from '../components/tone'
 import { eps, fmt, fmtSigned } from '@/domain/currency'
+import { Button } from '../components/Button'
+import { GroupModal } from '../components/GroupModal'
 
 const cardBase = 'rounded-[18px] border border-ink/[.08] bg-cream'
 const cardTitle = 'font-display text-[14.5px] font-bold'
 const statLabel = 'text-[11.5px] font-bold tracking-[.8px]'
 
 export function Dashboard() {
+  const [creatingGroup, setCreatingGroup] = useState(false)
   const { meId } = useAuth()
   const { cur } = useCurrency()
   const { members, groups, expenses } = useData()
@@ -21,6 +25,13 @@ export function Dashboard() {
 
   return (
     <div className="rise mx-auto max-w-[980px]">
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <div>
+          <div className="font-display text-[20px] font-bold">Your shared expenses</div>
+          <div className="text-[12.5px] text-mute">Balances use locked expense-date rates.</div>
+        </div>
+        <Button onClick={() => setCreatingGroup(true)} className="min-h-11 whitespace-nowrap px-4">New group</Button>
+      </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
         <div className={`${cardBase} px-4 py-4 sm:px-[22px] sm:py-5`}>
           <div className={`${statLabel} text-mute`}>YOU ARE OWED</div>
@@ -99,6 +110,7 @@ export function Dashboard() {
           </div>
         </div>
       </div>
+      {creatingGroup && <GroupModal onClose={() => setCreatingGroup(false)} />}
     </div>
   )
 }

@@ -44,3 +44,8 @@ management:
 
 app:
   frontend-url: ${APP_FRONTEND_URL:http://localhost:5173}
+  time-zone: ${APP_TIME_ZONE:Asia/Manila}
+  fx:
+    base-url: ${FX_BASE_URL:https://api.frankfurter.dev}
+    timeout: ${FX_TIMEOUT:5s}
+    prefetch-cron: ${FX_PREFETCH_CRON:0 30 1 * * *}

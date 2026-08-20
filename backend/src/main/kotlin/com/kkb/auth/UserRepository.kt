@@ -5,4 +5,5 @@ import java.util.UUID
 
 interface UserRepository : JpaRepository<UserEntity, UUID> {
     fun findByGoogleSubject(googleSubject: String): UserEntity?
+    fun findByEmailIgnoreCase(email: String): UserEntity?
 }

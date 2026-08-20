@@ -1,34 +1,42 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import { authService } from '@/data'
-import { ME_ID } from '@/data/seed'
 import type { AuthUser } from '@/data/types'
 
 interface AuthContextValue {
   user: AuthUser | null
+  loading: boolean
   /** Current user's member id, used by balance selectors. */
   meId: string
-  login: (email: string, password: string) => Promise<void>
-  signup: (name: string, email: string, password: string) => Promise<void>
-  loginWithGoogle: () => Promise<void>
+  loginWithGoogle: () => void
   logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(() => authService.current())
+  const [user, setUser] = useState<AuthUser | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const login = useCallback(async (email: string, password: string) => {
-    setUser(await authService.login(email, password))
+  useEffect(() => {
+    let active = true
+    authService.current()
+      .then((currentUser) => {
+        if (active) setUser(currentUser)
+      })
+      .catch(() => {
+        if (active) setUser(null)
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => {
+      active = false
+    }
   }, [])
 
-  const signup = useCallback(async (name: string, email: string, password: string) => {
-    setUser(await authService.signup(name, email, password))
-  }, [])
-
-  const loginWithGoogle = useCallback(async () => {
-    setUser(await authService.loginWithGoogle())
+  const loginWithGoogle = useCallback(() => {
+    authService.loginWithGoogle()
   }, [])
 
   const logout = useCallback(async () => {
@@ -37,8 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, meId: user?.id ?? ME_ID, login, signup, loginWithGoogle, logout }),
-    [user, login, signup, loginWithGoogle, logout],
+    () => ({ user, loading, meId: user?.id ?? '', loginWithGoogle, logout }),
+    [user, loading, loginWithGoogle, logout],
   )
 
   return <AuthContext value={value}>{children}</AuthContext>

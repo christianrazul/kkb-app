@@ -12,20 +12,19 @@ export interface AuthUser {
  */
 export interface AuthService {
   /** Restore a persisted session, if any. */
-  current(): AuthUser | null
-  login(email: string, password: string): Promise<AuthUser>
-  signup(name: string, email: string, password: string): Promise<AuthUser>
-  loginWithGoogle(): Promise<AuthUser>
+  current(): Promise<AuthUser | null>
+  loginWithGoogle(): void
   logout(): Promise<void>
 }
 
 export interface NewExpenseInput {
   gid: string
   desc: string
-  amount: number
+  amount: string
   cur: CurrencyCode
   paidBy: string
   parts: string[]
+  date: string
 }
 
 export interface SettlementInput {
@@ -41,9 +40,9 @@ export interface SettlementInput {
  * HTTP-backed implementation without touching the domain or UI layers.
  */
 export interface ExpenseRepository {
-  listMembers(): Promise<Member[]>
-  listGroups(): Promise<Group[]>
-  listExpenses(): Promise<Expense[]>
+  load(): Promise<{ members: Member[]; groups: Group[]; expenses: Expense[] }>
   addExpense(input: NewExpenseInput): Promise<Expense>
   recordSettlement(input: SettlementInput): Promise<Expense>
+  createGroup(name: string, tileColor: string): Promise<void>
+  inviteMember(groupId: string, email: string): Promise<void>
 }

@@ -1,5 +1,5 @@
-import { MockAuthService } from './mock/mockAuthService'
-import { MockExpenseRepository } from './mock/mockExpenseRepository'
+import { HttpAuthService } from './http/httpAuthService'
+import { HttpExpenseRepository } from './http/httpExpenseRepository'
 import type { AuthService, ExpenseRepository } from './types'
 
 /**
@@ -7,5 +7,5 @@ import type { AuthService, ExpenseRepository } from './types'
  * put the app on a real backend — nothing else in the app references the
  * concrete classes.
  */
-export const authService: AuthService = new MockAuthService()
-export const expenseRepository: ExpenseRepository = new MockExpenseRepository()
+export const authService: AuthService = new HttpAuthService()
+export const expenseRepository: ExpenseRepository = new HttpExpenseRepository()
