@@ -24,20 +24,6 @@ spring:
     timeout: 30d
     jdbc:
       initialize-schema: never
-  mail:
-    host: ${SMTP_HOST:localhost}
-    port: ${SMTP_PORT:587}
-    username: ${SMTP_USERNAME:}
-    password: ${SMTP_PASSWORD:}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-          connectiontimeout: ${SMTP_CONNECTION_TIMEOUT_MS:5000}
-          timeout: ${SMTP_READ_TIMEOUT_MS:5000}
-          writetimeout: ${SMTP_WRITE_TIMEOUT_MS:5000}
   security:
     oauth2:
       client:
@@ -66,6 +52,9 @@ app:
     prefetch-cron: ${FX_PREFETCH_CRON:0 30 1 * * *}
   mail:
     enabled: ${MAIL_ENABLED:false}
+    api-base-url: ${RESEND_API_BASE_URL:https://api.resend.com}
+    api-key: ${RESEND_API_KEY:}
     from: ${MAIL_FROM:KKB <invites@mail.kkb-app.space>}
+    timeout: ${MAIL_TIMEOUT:5s}
     max-attempts: ${MAIL_MAX_ATTEMPTS:5}
     poll-delay-ms: ${MAIL_POLL_DELAY_MS:30000}

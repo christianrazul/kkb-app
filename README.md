@@ -36,7 +36,7 @@ KKB has two separate invitation paths:
 - Group invitations are email-bound, use a single opaque link, and remain pending until the matching Google account explicitly accepts. Sending or copying the link never creates group membership by itself.
 - KKB invitations send or copy a general signup link. They create no group membership.
 
-Invitation email is delivered through Resend SMTP from `invites@mail.kkb-app.space`. A database-backed outbox retains queued messages, retries transient failures, and exposes delivery state without rolling back the invitation. Set `MAIL_ENABLED=true` only after the sending domain is verified and `SMTP_PASSWORD` contains a Resend API key.
+Invitation email is delivered through Resend's HTTPS API from `invites@mail.kkb-app.space`. A database-backed outbox retains queued messages, retries transient failures, and exposes delivery state without rolling back the invitation. Set `MAIL_ENABLED=true` only after the sending domain is verified and `RESEND_API_KEY` contains a restricted Resend API key.
 
 ## Money and exchange rates
 
