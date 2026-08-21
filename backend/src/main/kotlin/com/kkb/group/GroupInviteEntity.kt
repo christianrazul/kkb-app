@@ -23,6 +23,9 @@ class GroupInviteEntity(
     @Column(nullable = false, length = 320)
     var email: String,
 
+    @Column(nullable = false, unique = true, length = 64)
+    var token: String,
+
     @Column(name = "invited_by_user_id", nullable = false)
     var invitedByUserId: UUID,
 
@@ -45,5 +48,6 @@ class GroupInviteEntity(
 enum class GroupInviteStatus {
     PENDING,
     ACCEPTED,
+    DECLINED,
     REVOKED,
 }

@@ -130,6 +130,8 @@ data class GroupInviteResponse(
     val id: UUID,
     val email: String,
     val createdAt: Instant,
+    val inviteUrl: String,
+    val deliveryStatus: String,
 )
 
 private fun GroupRecord.toResponse() = GroupResponse(
@@ -147,6 +149,12 @@ private fun GroupRecord.toResponse() = GroupResponse(
         )
     },
     pendingInvites = pendingInvites.map { invite ->
-        GroupInviteResponse(invite.id, invite.email, invite.createdAt)
+        GroupInviteResponse(
+            id = invite.invite.id,
+            email = invite.invite.email,
+            createdAt = invite.invite.createdAt,
+            inviteUrl = invite.inviteUrl,
+            deliveryStatus = invite.deliveryStatus.name,
+        )
     },
 )

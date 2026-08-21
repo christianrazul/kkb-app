@@ -5,6 +5,6 @@ import java.util.UUID
 
 interface GroupInviteRepository : JpaRepository<GroupInviteEntity, UUID> {
     fun findByGroupIdAndEmail(groupId: UUID, email: String): GroupInviteEntity?
+    fun findByToken(token: String): GroupInviteEntity?
     fun findAllByGroupIdAndStatusOrderByCreatedAt(groupId: UUID, status: String): List<GroupInviteEntity>
-    fun findAllByEmailAndStatus(email: String, status: String): List<GroupInviteEntity>
 }

@@ -18,8 +18,9 @@ export class HttpAuthService implements AuthService {
     }
   }
 
-  loginWithGoogle(): void {
-    window.location.assign('/oauth2/authorization/google')
+  loginWithGoogle(returnTo?: string): void {
+    const query = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : ''
+    window.location.assign(`/api/auth/google${query}`)
   }
 
   async logout(): Promise<void> {

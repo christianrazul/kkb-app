@@ -13,7 +13,7 @@ class GoogleAuthenticationSuccessHandler(
     private val googleUserService: GoogleUserService,
     @Value("\${app.frontend-url}") frontendUrl: String,
 ) : AuthenticationSuccessHandler {
-    private val dashboardUrl = "${frontendUrl.trimEnd('/')}/dashboard"
+    private val frontendUrl = frontendUrl.trimEnd('/')
 
     override fun onAuthenticationSuccess(
         request: HttpServletRequest,
@@ -25,10 +25,13 @@ class GoogleAuthenticationSuccessHandler(
         val user = googleUserService.provision(principal)
 
         request.session.setAttribute(AUTHENTICATED_USER_ID, user.id)
-        response.sendRedirect(dashboardUrl)
+        val returnTo = request.session.getAttribute(RETURN_TO_ATTRIBUTE) as? String
+        request.session.removeAttribute(RETURN_TO_ATTRIBUTE)
+        response.sendRedirect("$frontendUrl${returnTo ?: "/dashboard"}")
     }
 
     companion object {
         const val AUTHENTICATED_USER_ID = "KKB_AUTHENTICATED_USER_ID"
+        const val RETURN_TO_ATTRIBUTE = "KKB_AUTH_RETURN_TO"
     }
 }

@@ -6,13 +6,14 @@ import com.kkb.currency.SupportedCurrency
 import com.kkb.fx.ExchangeRateClient
 import com.kkb.fx.RemoteExchangeRate
 import com.kkb.group.GroupApplicationService
-import com.kkb.group.GroupInvitationAcceptanceService
 import com.kkb.group.ExpenseGroupEntity
 import com.kkb.group.ExpenseGroupRepository
 import com.kkb.group.GroupMemberEntity
 import com.kkb.group.GroupMemberRepository
 import com.kkb.group.GroupRole
 import com.kkb.balance.GroupBalanceService
+import com.kkb.invitation.InvitationApplicationService
+import com.kkb.invitation.EmailOutboxRepository
 import com.kkb.settlement.CreateSettlementCommand
 import com.kkb.settlement.SettlementApplicationService
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -45,9 +46,10 @@ class ExpenseApplicationServicePostgresTests @Autowired constructor(
     private val groupMemberRepository: GroupMemberRepository,
     private val exchangeRateClient: FakeExchangeRateClient,
     private val groupApplicationService: GroupApplicationService,
-    private val invitationAcceptanceService: GroupInvitationAcceptanceService,
+    private val invitationApplicationService: InvitationApplicationService,
     private val settlementApplicationService: SettlementApplicationService,
     private val groupBalanceService: GroupBalanceService,
+    private val emailOutboxRepository: EmailOutboxRepository,
 ) {
     @Test
     fun `creates an expense with one locked rate and exact share totals`() {
@@ -119,13 +121,14 @@ class ExpenseApplicationServicePostgresTests @Autowired constructor(
     }
 
     @Test
-    fun `accepts a pending email invitation when the matching user is provisioned`() {
+    fun `adds an invited user only after explicit acceptance`() {
         val ownerId = createUser()
         val group = groupApplicationService.create(ownerId, "Invite Test", "#5b7ec9")
         val invitedEmail = "invited-${UUID.randomUUID()}@example.test"
 
         val invitedGroup = groupApplicationService.invite(group.group.id, ownerId, invitedEmail)
         assertEquals(1, invitedGroup.pendingInvites.size)
+        val invitationToken = invitedGroup.pendingInvites.single().invite.token
 
         val invitedUser = userRepository.save(
             UserEntity(
@@ -134,11 +137,47 @@ class ExpenseApplicationServicePostgresTests @Autowired constructor(
                 displayName = "Invited User",
             ),
         )
-        invitationAcceptanceService.acceptPendingInvitations(invitedUser)
+        val beforeAcceptance = groupApplicationService.list(ownerId).single { it.group.id == group.group.id }
+        assertEquals(1, beforeAcceptance.members.size)
+
+        invitationApplicationService.acceptGroupInvitation(invitationToken, invitedUser.id)
 
         val reloaded = groupApplicationService.list(ownerId).single { it.group.id == group.group.id }
         assertEquals(2, reloaded.members.size)
         assertEquals(0, reloaded.pendingInvites.size)
+    }
+
+    @Test
+    fun `rejects group acceptance from a different email`() {
+        val ownerId = createUser()
+        val group = groupApplicationService.create(ownerId, "Private Group", "#5b7ec9")
+        val invitedEmail = "invited-${UUID.randomUUID()}@example.test"
+        val invitation = groupApplicationService.invite(group.group.id, ownerId, invitedEmail)
+            .pendingInvites
+            .single()
+            .invite
+        val wrongUserId = createUser()
+
+        val exception = assertThrows(com.kkb.web.ApiException::class.java) {
+            invitationApplicationService.acceptGroupInvitation(invitation.token, wrongUserId)
+        }
+
+        assertEquals("invitation_email_mismatch", exception.code)
+        val reloaded = groupApplicationService.list(ownerId).single { it.group.id == group.group.id }
+        assertEquals(1, reloaded.members.size)
+    }
+
+    @Test
+    fun `kkb invitation queues email without a group invitation`() {
+        val inviterId = createUser()
+        val recipientEmail = "new-${UUID.randomUUID()}@example.test"
+
+        val result = invitationApplicationService.inviteToKkb(inviterId, recipientEmail)
+        val queuedEmail = emailOutboxRepository.findFirstByRecipientEmailOrderByCreatedAtDesc(recipientEmail)
+
+        assertEquals("QUEUED", result.deliveryStatus.name)
+        assertEquals(null, queuedEmail?.groupInvite)
+        assertEquals(true, queuedEmail?.textBody?.contains("does not add you to a group"))
     }
 
     @Test

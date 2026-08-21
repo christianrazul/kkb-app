@@ -2,7 +2,12 @@ package com.kkb.group
 
 import com.kkb.auth.UserEntity
 import com.kkb.auth.UserRepository
+import com.kkb.invitation.EmailDeliveryStatus
+import com.kkb.invitation.EmailOutboxService
+import com.kkb.invitation.InvitationEmailComposer
+import com.kkb.invitation.InvitationTokenGenerator
 import com.kkb.web.ApiException
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -16,8 +21,14 @@ class GroupApplicationService(
     private val groupMemberRepository: GroupMemberRepository,
     private val groupInviteRepository: GroupInviteRepository,
     private val userRepository: UserRepository,
+    private val tokenGenerator: InvitationTokenGenerator,
+    private val emailComposer: InvitationEmailComposer,
+    private val emailOutboxService: EmailOutboxService,
     private val clock: Clock,
+    @Value("\${app.frontend-url}") frontendUrl: String,
 ) {
+    private val frontendUrl = frontendUrl.trimEnd('/')
+
     @Transactional(readOnly = true)
     fun list(actorUserId: UUID): List<GroupRecord> =
         groupMemberRepository.findAllByUserIdOrderByJoinedAt(actorUserId)
@@ -69,6 +80,7 @@ class GroupApplicationService(
         val email = rawEmail.trim().lowercase()
         val now = Instant.now(clock)
         val existingUser = userRepository.findByEmailIgnoreCase(email)
+        val invitationToken = tokenGenerator.generate()
 
         if (existingUser != null && groupMemberRepository.existsByGroupIdAndUserId(groupId, existingUser.id)) {
             throw ApiException(HttpStatus.CONFLICT, "already_group_member", "This user is already a group member")
@@ -78,34 +90,35 @@ class GroupApplicationService(
             ?: GroupInviteEntity(
                 groupId = groupId,
                 email = email,
+                token = invitationToken,
                 invitedByUserId = actorUserId,
                 createdAt = now,
                 updatedAt = now,
             )
 
         invite.invitedByUserId = actorUserId
+        invite.token = invitationToken
         invite.updatedAt = now
+        invite.status = GroupInviteStatus.PENDING.name
+        invite.acceptedByUserId = null
+        invite.acceptedAt = null
 
-        if (existingUser == null) {
-            invite.status = GroupInviteStatus.PENDING.name
-            invite.acceptedByUserId = null
-            invite.acceptedAt = null
-        } else {
-            groupMemberRepository.save(
-                GroupMemberEntity(
-                    groupId = groupId,
-                    userId = existingUser.id,
-                    role = GroupRole.MEMBER.name,
-                    joinedAt = now,
-                ),
-            )
-            invite.status = GroupInviteStatus.ACCEPTED.name
-            invite.acceptedByUserId = existingUser.id
-            invite.acceptedAt = now
-        }
-
-        groupInviteRepository.save(invite)
-        return assemble(requireGroup(groupId), actorUserId)
+        val savedInvite = groupInviteRepository.save(invite)
+        val group = requireGroup(groupId)
+        val inviter = userRepository.findById(actorUserId).orElseThrow()
+        val invitationUrl = groupInvitationUrl(savedInvite.token)
+        emailOutboxService.queue(
+            requestedByUserId = actorUserId,
+            recipientEmail = email,
+            groupInvite = savedInvite,
+            content = emailComposer.groupInvitation(
+                inviterName = inviter.displayName,
+                groupName = group.name,
+                invitationUrl = invitationUrl,
+                invitedEmail = email,
+            ),
+        )
+        return assemble(group, actorUserId)
     }
 
     @Transactional
@@ -120,6 +133,7 @@ class GroupApplicationService(
         invite.status = GroupInviteStatus.REVOKED.name
         invite.updatedAt = Instant.now(clock)
         groupInviteRepository.save(invite)
+        emailOutboxService.cancelQueued(invite.id)
         return assemble(requireGroup(groupId), actorUserId)
     }
 
@@ -166,17 +180,31 @@ class GroupApplicationService(
             members = memberships.map { membership ->
                 GroupMemberRecord(membership, requireNotNull(usersById[membership.userId]))
             },
-            pendingInvites = pendingInvites,
+            pendingInvites = pendingInvites.map { invite ->
+                GroupInviteRecord(
+                    invite = invite,
+                    inviteUrl = groupInvitationUrl(invite.token),
+                    deliveryStatus = emailOutboxService.latestStatus(invite.id) ?: EmailDeliveryStatus.QUEUED,
+                )
+            },
             actorIsOwner = actorIsOwner,
         )
     }
+
+    private fun groupInvitationUrl(token: String): String = "$frontendUrl/invitations/groups/$token"
 }
 
 data class GroupRecord(
     val group: ExpenseGroupEntity,
     val members: List<GroupMemberRecord>,
-    val pendingInvites: List<GroupInviteEntity>,
+    val pendingInvites: List<GroupInviteRecord>,
     val actorIsOwner: Boolean,
+)
+
+data class GroupInviteRecord(
+    val invite: GroupInviteEntity,
+    val inviteUrl: String,
+    val deliveryStatus: EmailDeliveryStatus,
 )
 
 data class GroupMemberRecord(

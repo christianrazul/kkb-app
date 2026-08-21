@@ -15,6 +15,8 @@ export interface Member {
 export interface PendingInvite {
   id: string
   email: string
+  inviteUrl: string
+  deliveryStatus: 'QUEUED' | 'SENT' | 'FAILED'
 }
 
 export interface Group {

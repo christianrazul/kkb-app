@@ -31,7 +31,12 @@ Create a Google OAuth 2.0 web client with these authorized redirect URIs:
 
 Use `http://localhost:5173` and `https://kkb-app.space` as authorized JavaScript origins. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` in `.env`. The login entry point is `/oauth2/authorization/google`.
 
-Group owners invite members by email. If that email already belongs to a KKB user, membership is immediate. Otherwise, the invitation remains pending and is accepted automatically when the matching Google account first signs in. KKB does not send invitation emails.
+KKB has two separate invitation paths:
+
+- Group invitations are email-bound, use a single opaque link, and remain pending until the matching Google account explicitly accepts. Sending or copying the link never creates group membership by itself.
+- KKB invitations send or copy a general signup link. They create no group membership.
+
+Invitation email is delivered through Resend SMTP from `invites@mail.kkb-app.space`. A database-backed outbox retains queued messages, retries transient failures, and exposes delivery state without rolling back the invitation. Set `MAIL_ENABLED=true` only after the sending domain is verified and `SMTP_PASSWORD` contains a Resend API key.
 
 ## Money and exchange rates
 
@@ -43,6 +48,10 @@ Authenticated routes include:
 
 - `GET` and `POST /api/groups`
 - `POST /api/groups/{groupId}/invites`
+- `GET /api/invitations/groups/{token}`
+- `POST /api/invitations/groups/{token}/accept`
+- `POST /api/invitations/groups/{token}/decline`
+- `POST /api/invitations/kkb`
 - `GET` and `POST /api/groups/{groupId}/expenses`
 - `GET` and `POST /api/groups/{groupId}/settlements`
 - `GET /api/groups/{groupId}/balances`

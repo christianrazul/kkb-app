@@ -9,6 +9,7 @@ import { toneText } from '../components/tone'
 import { eps, fmt, fmtSigned } from '@/domain/currency'
 import { Button } from '../components/Button'
 import { GroupModal } from '../components/GroupModal'
+import { KkbInviteModal } from '../components/KkbInviteModal'
 
 const cardBase = 'rounded-[18px] border border-ink/[.08] bg-cream'
 const cardTitle = 'font-display text-[14.5px] font-bold'
@@ -16,6 +17,7 @@ const statLabel = 'text-[11.5px] font-bold tracking-[.8px]'
 
 export function Dashboard() {
   const [creatingGroup, setCreatingGroup] = useState(false)
+  const [invitingToKkb, setInvitingToKkb] = useState(false)
   const { meId } = useAuth()
   const { cur } = useCurrency()
   const { members, groups, expenses } = useData()
@@ -25,12 +27,15 @@ export function Dashboard() {
 
   return (
     <div className="rise mx-auto max-w-[980px]">
-      <div className="mb-4 flex items-center justify-between gap-3">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="font-display text-[20px] font-bold">Your shared expenses</div>
           <div className="text-[12.5px] text-mute">Balances use locked expense-date rates.</div>
         </div>
-        <Button onClick={() => setCreatingGroup(true)} className="min-h-11 whitespace-nowrap px-4">New group</Button>
+        <div className="grid flex-none grid-cols-2 gap-2 sm:flex">
+          <Button variant="secondary" onClick={() => setInvitingToKkb(true)} className="min-h-11 whitespace-nowrap px-4">Invite to KKB</Button>
+          <Button onClick={() => setCreatingGroup(true)} className="min-h-11 whitespace-nowrap px-4">New group</Button>
+        </div>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
         <div className={`${cardBase} px-4 py-4 sm:px-[22px] sm:py-5`}>
@@ -111,6 +116,7 @@ export function Dashboard() {
         </div>
       </div>
       {creatingGroup && <GroupModal onClose={() => setCreatingGroup(false)} />}
+      {invitingToKkb && <KkbInviteModal onClose={() => setInvitingToKkb(false)} />}
     </div>
   )
 }

@@ -39,6 +39,7 @@ interface DataContextValue extends DataState {
   recordSettlement: (input: SettlementInput) => Promise<void>
   createGroup: (name: string, tileColor: string) => Promise<void>
   inviteMember: (groupId: string, email: string) => Promise<void>
+  inviteToKkb: (email: string) => Promise<{ inviteUrl: string; deliveryStatus: 'QUEUED' | 'SENT' | 'FAILED' }>
   refresh: () => Promise<void>
 }
 
@@ -97,6 +98,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         await expenseRepository.inviteMember(groupId, email)
         await load()
       },
+      inviteToKkb: (email) => expenseRepository.inviteToKkb(email),
       refresh: load,
     }),
     [state, load],

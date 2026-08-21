@@ -15,7 +15,12 @@ interface GroupApiResponse {
     email: string
     avatarUrl?: string
   }>
-  pendingInvites: Array<{ id: string; email: string }>
+  pendingInvites: Array<{
+    id: string
+    email: string
+    inviteUrl: string
+    deliveryStatus: 'QUEUED' | 'SENT' | 'FAILED'
+  }>
 }
 
 interface ExpenseApiResponse {
@@ -178,6 +183,13 @@ export class HttpExpenseRepository implements ExpenseRepository {
 
   async inviteMember(groupId: string, email: string): Promise<void> {
     await request(`/api/groups/${groupId}/invites`, {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    })
+  }
+
+  async inviteToKkb(email: string): Promise<{ inviteUrl: string; deliveryStatus: 'QUEUED' | 'SENT' | 'FAILED' }> {
+    return request('/api/invitations/kkb', {
       method: 'POST',
       body: JSON.stringify({ email }),
     })

@@ -28,7 +28,7 @@ class SecurityConfig(
             .authorizeHttpRequests { requests ->
                 requests
                     .requestMatchers("/actuator/health", "/error", "/oauth2/**", "/login/**").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/auth/csrf", "/api/auth/google", "/api/invitations/groups/*").permitAll()
                     .requestMatchers("/api/**").authenticated()
                     .anyRequest().permitAll()
             }

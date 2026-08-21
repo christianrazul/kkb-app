@@ -8,7 +8,7 @@ interface AuthContextValue {
   loading: boolean
   /** Current user's member id, used by balance selectors. */
   meId: string
-  loginWithGoogle: () => void
+  loginWithGoogle: (returnTo?: string) => void
   logout: () => Promise<void>
 }
 
@@ -35,8 +35,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const loginWithGoogle = useCallback(() => {
-    authService.loginWithGoogle()
+  const loginWithGoogle = useCallback((returnTo?: string) => {
+    authService.loginWithGoogle(returnTo)
   }, [])
 
   const logout = useCallback(async () => {

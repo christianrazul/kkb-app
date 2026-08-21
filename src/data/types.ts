@@ -13,7 +13,7 @@ export interface AuthUser {
 export interface AuthService {
   /** Restore a persisted session, if any. */
   current(): Promise<AuthUser | null>
-  loginWithGoogle(): void
+  loginWithGoogle(returnTo?: string): void
   logout(): Promise<void>
 }
 
@@ -45,4 +45,5 @@ export interface ExpenseRepository {
   recordSettlement(input: SettlementInput): Promise<Expense>
   createGroup(name: string, tileColor: string): Promise<void>
   inviteMember(groupId: string, email: string): Promise<void>
+  inviteToKkb(email: string): Promise<{ inviteUrl: string; deliveryStatus: 'QUEUED' | 'SENT' | 'FAILED' }>
 }

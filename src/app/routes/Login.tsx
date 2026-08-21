@@ -38,7 +38,7 @@ export function Login() {
           <Button
             type="button"
             variant="secondary"
-            onClick={loginWithGoogle}
+            onClick={() => loginWithGoogle()}
             className="flex w-full items-center justify-center gap-[10px] !border-ink/[.18] !bg-white p-3 text-[14px] hover:!bg-sand"
           >
             <GoogleIcon />

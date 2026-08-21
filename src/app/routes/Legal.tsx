@@ -58,6 +58,9 @@ export function Privacy() {
         <p>
           KKB does not sell personal information or use it for advertising. Information is shared with other people only through groups that you join or are invited to. Service providers may process limited data when needed to operate hosting, authentication, and exchange-rate features.
         </p>
+        <p>
+          When an invitation email is requested, KKB sends the recipient&apos;s email address, the inviter&apos;s display name, and, for group invitations, the group name to Resend for email delivery. Invitation links do not include expense or balance information.
+        </p>
       </Section>
 
       <Section title="Storage, security, and retention">
