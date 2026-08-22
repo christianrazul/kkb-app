@@ -19,14 +19,12 @@ export function GroupDetail() {
   const navigate = useNavigate()
   const { meId } = useAuth()
   const { cur, displayCur } = useCurrency()
-  const { members, expenses, groupById, loaded, deleteExpense } = useData()
+  const { members, expenses, groupById, loaded } = useData()
   const [modal, setModal] = useState<'expense' | 'settle' | null>(null)
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null)
   const [sort, setSort] = useState<ExpenseSort>('newest')
   const [currencyFilter, setCurrencyFilter] = useState<CurrencyCode | 'all'>('all')
   const [memberFilter, setMemberFilter] = useState<string | 'all'>('all')
-  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null)
-  const [actionError, setActionError] = useState<string | null>(null)
 
   const group = groupId ? groupById(groupId) : undefined
   if (loaded && !group) return <Navigate to="/dashboard" replace />
@@ -44,19 +42,6 @@ export function GroupDetail() {
   )
   const editingExpense = expenses.find((expense) => expense.id === editingExpenseId)
   const filterMemberIds = [...group.members, ...group.formerMembers]
-
-  const removeExpense = async (expenseId: string, description: string) => {
-    if (!window.confirm(`Delete “${description}”? This cannot be undone.`)) return
-    setDeletingExpenseId(expenseId)
-    setActionError(null)
-    try {
-      await deleteExpense(group.id, expenseId)
-    } catch (cause) {
-      setActionError(cause instanceof Error ? cause.message : 'Could not delete the expense')
-    } finally {
-      setDeletingExpenseId(null)
-    }
-  }
 
   return (
     <div className="rise mx-auto max-w-[880px]">
@@ -81,7 +66,7 @@ export function GroupDetail() {
         </div>
       </div>
 
-      <div className="mb-[18px] flex flex-wrap gap-2">
+      <div className="mb-[18px] flex flex-wrap items-center gap-2">
         {vm.balances.map((b) => (
           <span
             key={b.id}
@@ -92,39 +77,32 @@ export function GroupDetail() {
             <span className={`flex-none whitespace-nowrap font-bold ${toneText[b.tone]}`}>{b.amtFmt}</span>
           </span>
         ))}
-      </div>
-
-      <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-        <label className="flex flex-col gap-1 text-[10.5px] font-bold tracking-[.6px] text-mute-2">
-          SORT
+        <div className="grid w-full grid-cols-3 gap-1.5 sm:ml-auto sm:w-auto">
           <select
+            aria-label="Sort expenses"
             value={sort}
             onChange={(event) => setSort(event.target.value as ExpenseSort)}
-            className="min-h-11 cursor-pointer rounded-xl border border-ink/15 bg-cream px-3 text-[13px] font-semibold tracking-normal text-ink outline-none"
+            className="h-9 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none sm:w-[102px]"
           >
-            <option value="newest">Newest first</option>
-            <option value="oldest">Oldest first</option>
-            <option value="highest">Highest amount (PHP value)</option>
-            <option value="lowest">Lowest amount (PHP value)</option>
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+            <option value="highest">Highest</option>
+            <option value="lowest">Lowest</option>
           </select>
-        </label>
-        <label className="flex flex-col gap-1 text-[10.5px] font-bold tracking-[.6px] text-mute-2">
-          CURRENCY
           <select
+            aria-label="Filter by currency"
             value={currencyFilter}
             onChange={(event) => setCurrencyFilter(event.target.value as CurrencyCode | 'all')}
-            className="min-h-11 cursor-pointer rounded-xl border border-ink/15 bg-cream px-3 text-[13px] font-semibold tracking-normal text-ink outline-none"
+            className="h-9 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none sm:w-[122px]"
           >
             <option value="all">All currencies</option>
             {CURRENCIES.map((currency) => <option key={currency.code} value={currency.code}>{currency.label}</option>)}
           </select>
-        </label>
-        <label className="flex flex-col gap-1 text-[10.5px] font-bold tracking-[.6px] text-mute-2">
-          MEMBER
           <select
+            aria-label="Filter by member"
             value={memberFilter}
             onChange={(event) => setMemberFilter(event.target.value)}
-            className="min-h-11 cursor-pointer rounded-xl border border-ink/15 bg-cream px-3 text-[13px] font-semibold tracking-normal text-ink outline-none"
+            className="h-9 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none sm:w-[122px]"
           >
             <option value="all">All members</option>
             {filterMemberIds.map((id) => (
@@ -133,10 +111,8 @@ export function GroupDetail() {
               </option>
             ))}
           </select>
-        </label>
+        </div>
       </div>
-
-      {actionError && <div className="mb-3 rounded-xl border border-neg/20 bg-neg/5 px-3.5 py-2.5 text-[12.5px] font-semibold text-neg">{actionError}</div>}
 
       <div className="rounded-[18px] border border-ink/[.08] bg-cream px-3 py-1.5 sm:px-6">
         {vm.expenseRows.length === 0 && (
@@ -147,7 +123,15 @@ export function GroupDetail() {
           />
         )}
         {vm.expenseRows.map((e) => (
-          <div key={e.id} className="flex items-center gap-2.5 border-t border-ink/[.06] py-3.5 sm:gap-3.5">
+          <div
+            key={e.id}
+            onClick={e.manageable ? () => setEditingExpenseId(e.id) : undefined}
+            className={`flex items-center gap-2.5 py-3.5 sm:gap-3.5 ${
+              e.manageable
+                ? '-mx-2 cursor-pointer border-t border-ink/[.06] px-2 transition-colors hover:bg-sand-2/70'
+                : 'my-1 rounded-xl border border-pos/25 bg-pos/10 px-2.5'
+            }`}
+          >
             <span className="w-9 flex-none text-center sm:w-11">
               <span className="block text-[10px] font-bold tracking-[.8px] text-mute-3">{e.mon}</span>
               <span className="block font-display text-[17px] font-bold text-mute-4">{e.day}</span>
@@ -160,25 +144,6 @@ export function GroupDetail() {
               <span className="block text-[11px] text-mute">{e.dirLabel}</span>
               <span className={`block text-[14px] font-bold ${toneText[e.tone]}`}>{e.shareFmt}</span>
             </span>
-            {e.manageable && (
-              <span className="flex flex-none flex-col gap-0.5 text-right sm:flex-row sm:gap-1">
-                <button
-                  type="button"
-                  onClick={() => setEditingExpenseId(e.id)}
-                  className="min-h-9 cursor-pointer rounded-lg px-2 text-[11.5px] font-bold text-mute-2 transition-colors hover:bg-sand-2 hover:text-ink"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  disabled={deletingExpenseId === e.id}
-                  onClick={() => void removeExpense(e.id, e.desc)}
-                  className="min-h-9 cursor-pointer rounded-lg px-2 text-[11.5px] font-bold text-neg transition-colors hover:bg-neg/5 disabled:cursor-default disabled:opacity-50"
-                >
-                  {deletingExpenseId === e.id ? 'Deleting…' : 'Delete'}
-                </button>
-              </span>
-            )}
           </div>
         ))}
       </div>

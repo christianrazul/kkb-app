@@ -23,7 +23,7 @@ interface ExpenseModalProps {
 export function ExpenseModal({ group, expense, onClose }: ExpenseModalProps) {
   const { cur } = useCurrency()
   const { meId } = useAuth()
-  const { memberById, addExpense, updateExpense } = useData()
+  const { memberById, addExpense, updateExpense, deleteExpense } = useData()
 
   const [desc, setDesc] = useState(expense?.desc ?? '')
   const [amount, setAmount] = useState(expense ? String(expense.amount) : '')
@@ -39,6 +39,7 @@ export function ExpenseModal({ group, expense, onClose }: ExpenseModalProps) {
   const [date, setDate] = useState(expense?.date ?? todayIso())
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const includesFormerMember = Boolean(expense && (
     !group.members.includes(expense.paidBy) || expense.parts.some((id) => !group.members.includes(id))
   ))
@@ -51,7 +52,7 @@ export function ExpenseModal({ group, expense, onClose }: ExpenseModalProps) {
     setParts((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]))
 
   const submit = async () => {
-    if (!valid || saving) return
+    if (!valid || saving || deleting) return
     setSaving(true)
     setError(null)
     try {
@@ -62,6 +63,20 @@ export function ExpenseModal({ group, expense, onClose }: ExpenseModalProps) {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not save the expense')
       setSaving(false)
+    }
+  }
+
+  const remove = async () => {
+    if (!expense || saving || deleting) return
+    if (!window.confirm(`Delete “${expense.desc}”? This cannot be undone.`)) return
+    setDeleting(true)
+    setError(null)
+    try {
+      await deleteExpense(group.id, expense.id)
+      onClose()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not delete the expense')
+      setDeleting(false)
     }
   }
 
@@ -146,9 +161,21 @@ export function ExpenseModal({ group, expense, onClose }: ExpenseModalProps) {
         )}
 
         {error && <div className="text-[12.5px] font-semibold text-neg">{error}</div>}
-        <Button onClick={submit} disabled={!valid || saving} className="mt-1 min-h-11 whitespace-nowrap p-[13px] text-[14px]">
-          {saving ? 'Saving…' : expense ? 'Save changes' : 'Save expense'}
-        </Button>
+        <div className={`mt-1 grid gap-2 ${expense ? 'grid-cols-[auto_minmax(0,1fr)]' : ''}`}>
+          {expense && (
+            <button
+              type="button"
+              onClick={() => void remove()}
+              disabled={saving || deleting}
+              className="min-h-11 cursor-pointer whitespace-nowrap rounded-full border border-neg/30 bg-cream px-4 text-[13px] font-bold text-neg transition-colors hover:bg-neg/5 disabled:cursor-default disabled:opacity-45"
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
+            </button>
+          )}
+          <Button onClick={submit} disabled={!valid || saving || deleting} className="min-h-11 whitespace-nowrap p-[13px] text-[14px]">
+            {saving ? 'Saving…' : expense ? 'Save changes' : 'Save expense'}
+          </Button>
+        </div>
       </div>
     </Modal>
   )
