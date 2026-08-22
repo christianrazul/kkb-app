@@ -114,7 +114,7 @@ export function GroupDetail() {
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-[18px] border border-ink/[.08] bg-cream px-3 py-1.5 sm:px-6">
+      <div className="overflow-hidden rounded-[18px] border border-ink/[.08] bg-cream px-3 sm:px-6">
         {vm.expenseRows.length === 0 && (
           <EmptyState
             title={expenses.some((expense) => expense.gid === group.id) ? 'No matching activity' : 'No expenses yet'}
@@ -126,7 +126,7 @@ export function GroupDetail() {
           <div
             key={e.id}
             onClick={e.manageable ? () => setEditingExpenseId(e.id) : undefined}
-            className={`flex items-center gap-2.5 py-3.5 sm:gap-3.5 ${
+            className={`flex items-center gap-2.5 py-3 first:border-t-0 last:border-b-0 sm:gap-3.5 ${
               e.manageable
                 ? '-mx-3 cursor-pointer border-t border-ink/[.06] px-3 transition-colors hover:bg-sand-2/70 sm:-mx-6 sm:px-6'
                 : '-mx-3 border-y border-pos/25 bg-pos/10 px-3 sm:-mx-6 sm:px-6'
