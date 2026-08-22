@@ -5,6 +5,7 @@ import com.kkb.auth.UserRepository
 import com.kkb.currency.SupportedCurrency
 import com.kkb.fx.ExchangeRateClient
 import com.kkb.fx.RemoteExchangeRate
+import com.kkb.web.ApiException
 import com.kkb.group.GroupApplicationService
 import com.kkb.group.ExpenseGroupEntity
 import com.kkb.group.ExpenseGroupRepository
@@ -25,6 +26,7 @@ import org.springframework.boot.test.context.TestConfiguration
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.context.annotation.Primary
+import org.springframework.http.HttpStatus
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.testcontainers.junit.jupiter.Container
@@ -95,6 +97,100 @@ class ExpenseApplicationServicePostgresTests @Autowired constructor(
 
         val listed = expenseApplicationService.list(fixture.groupId, fixture.users.first())
         assertEquals(2, listed.size)
+    }
+
+    @Test
+    fun `uses the latest available rate for a missing expense date and locks it to that date`() {
+        val fixture = createGroupFixture()
+        val expenseDate = LocalDate.of(2025, 4, 6)
+        exchangeRateClient.reset()
+        exchangeRateClient.markUnavailable(expenseDate, expenseDate.minusDays(1))
+
+        val first = expenseApplicationService.create(
+            groupId = fixture.groupId,
+            actorUserId = fixture.users.first(),
+            command = CreateExpenseCommand(
+                description = "Weekend lunch",
+                amount = "10.00",
+                currency = SupportedCurrency.USD.name,
+                paidByUserId = fixture.users.first(),
+                participantIds = fixture.users,
+                expenseDate = expenseDate,
+            ),
+        )
+        val second = expenseApplicationService.create(
+            groupId = fixture.groupId,
+            actorUserId = fixture.users.first(),
+            command = CreateExpenseCommand(
+                description = "Weekend dinner",
+                amount = "20.00",
+                currency = SupportedCurrency.USD.name,
+                paidByUserId = fixture.users.first(),
+                participantIds = fixture.users,
+                expenseDate = expenseDate,
+            ),
+        )
+
+        assertEquals(expenseDate, first.snapshot.effectiveDate)
+        assertEquals(BigDecimal("56.1234000000"), first.snapshot.baseUnitsPerQuoteUnit)
+        assertEquals(first.snapshot.id, second.snapshot.id)
+        assertEquals(
+            listOf(expenseDate, expenseDate.minusDays(1), expenseDate.minusDays(2)),
+            exchangeRateClient.requestedDates,
+        )
+    }
+
+    @Test
+    fun `does not use an older rate when the provider is unavailable`() {
+        val fixture = createGroupFixture()
+        val expenseDate = LocalDate.of(2025, 4, 7)
+        exchangeRateClient.reset()
+        exchangeRateClient.failWithProviderUnavailable()
+
+        val exception = assertThrows(ApiException::class.java) {
+            expenseApplicationService.create(
+                groupId = fixture.groupId,
+                actorUserId = fixture.users.first(),
+                command = CreateExpenseCommand(
+                    description = "Dinner",
+                    amount = "10.00",
+                    currency = SupportedCurrency.USD.name,
+                    paidByUserId = fixture.users.first(),
+                    participantIds = fixture.users,
+                    expenseDate = expenseDate,
+                ),
+            )
+        }
+
+        assertEquals("rate_provider_unavailable", exception.code)
+        assertEquals(listOf(expenseDate), exchangeRateClient.requestedDates)
+    }
+
+    @Test
+    fun `stops looking for an older rate after seven days`() {
+        val fixture = createGroupFixture()
+        val expenseDate = LocalDate.of(2025, 4, 20)
+        val attemptedDates = (0L..7L).map(expenseDate::minusDays)
+        exchangeRateClient.reset()
+        exchangeRateClient.markUnavailable(*attemptedDates.toTypedArray())
+
+        val exception = assertThrows(ApiException::class.java) {
+            expenseApplicationService.create(
+                groupId = fixture.groupId,
+                actorUserId = fixture.users.first(),
+                command = CreateExpenseCommand(
+                    description = "Dinner",
+                    amount = "10.00",
+                    currency = SupportedCurrency.USD.name,
+                    paidByUserId = fixture.users.first(),
+                    participantIds = fixture.users,
+                    expenseDate = expenseDate,
+                ),
+            )
+        }
+
+        assertEquals("rate_not_available", exception.code)
+        assertEquals(attemptedDates, exchangeRateClient.requestedDates)
     }
 
     @Test
@@ -275,14 +371,43 @@ class FakeExchangeRateConfiguration {
 
 class FakeExchangeRateClient : ExchangeRateClient {
     val calls = AtomicInteger()
+    val requestedDates = mutableListOf<LocalDate>()
+    private val unavailableDates = mutableSetOf<LocalDate>()
+    private var providerUnavailable = false
 
     override fun phpPerUnit(currency: SupportedCurrency, date: LocalDate): RemoteExchangeRate {
         calls.incrementAndGet()
+        requestedDates.add(date)
+        if (providerUnavailable) {
+            throw ApiException(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                "rate_provider_unavailable",
+                "The exchange-rate provider is temporarily unavailable",
+            )
+        }
+        if (date in unavailableDates) {
+            throw ApiException(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                "rate_not_available",
+                "No exact PHP rate is available for ${currency.name} on $date",
+            )
+        }
         val rate = if (currency == SupportedCurrency.PHP) BigDecimal.ONE else BigDecimal("56.1234")
         return RemoteExchangeRate(date, rate)
     }
 
+    fun markUnavailable(vararg dates: LocalDate) {
+        unavailableDates.addAll(dates)
+    }
+
+    fun failWithProviderUnavailable() {
+        providerUnavailable = true
+    }
+
     fun reset() {
         calls.set(0)
+        requestedDates.clear()
+        unavailableDates.clear()
+        providerUnavailable = false
     }
 }

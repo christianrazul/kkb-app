@@ -42,7 +42,7 @@ Invitation email is delivered through Resend's HTTPS API from `invites@mail.kkb-
 
 Expense and settlement amounts are submitted as decimal strings, stored as integer minor units, and returned in the exact currency originally entered. KKB also stores the corresponding PHP value using the rate for the expense or settlement date. That locked value never changes later.
 
-Historical and daily rates come from the free Frankfurter v2 API. Missing historical rates are fetched on demand, while a scheduled job preloads the previous day's supported rates at 01:30 Asia/Manila time.
+Historical and daily rates come from the free Frankfurter v2 API. Missing historical rates are fetched on demand, while a scheduled job preloads the previous day's supported rates at 01:30 Asia/Manila time. When an exact daily rate is unavailable, KKB uses the latest available rate from the preceding seven calendar days and locks it to the requested date.
 
 Authenticated routes include:
 
