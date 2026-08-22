@@ -82,7 +82,7 @@ export function GroupDetail() {
             aria-label="Sort expenses"
             value={sort}
             onChange={(event) => setSort(event.target.value as ExpenseSort)}
-            className="h-9 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none sm:w-[102px]"
+            className="h-10 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none sm:w-[122px]"
           >
             <option value="newest">Newest</option>
             <option value="oldest">Oldest</option>
@@ -93,7 +93,7 @@ export function GroupDetail() {
             aria-label="Filter by currency"
             value={currencyFilter}
             onChange={(event) => setCurrencyFilter(event.target.value as CurrencyCode | 'all')}
-            className="h-9 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none sm:w-[122px]"
+            className="h-10 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none sm:w-[122px]"
           >
             <option value="all">All currencies</option>
             {CURRENCIES.map((currency) => <option key={currency.code} value={currency.code}>{currency.label}</option>)}
@@ -102,7 +102,7 @@ export function GroupDetail() {
             aria-label="Filter by member"
             value={memberFilter}
             onChange={(event) => setMemberFilter(event.target.value)}
-            className="h-9 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none sm:w-[122px]"
+            className="h-10 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none sm:w-[122px]"
           >
             <option value="all">All members</option>
             {filterMemberIds.map((id) => (
@@ -114,7 +114,7 @@ export function GroupDetail() {
         </div>
       </div>
 
-      <div className="rounded-[18px] border border-ink/[.08] bg-cream px-3 py-1.5 sm:px-6">
+      <div className="overflow-hidden rounded-[18px] border border-ink/[.08] bg-cream px-3 py-1.5 sm:px-6">
         {vm.expenseRows.length === 0 && (
           <EmptyState
             title={expenses.some((expense) => expense.gid === group.id) ? 'No matching activity' : 'No expenses yet'}
@@ -128,8 +128,8 @@ export function GroupDetail() {
             onClick={e.manageable ? () => setEditingExpenseId(e.id) : undefined}
             className={`flex items-center gap-2.5 py-3.5 sm:gap-3.5 ${
               e.manageable
-                ? '-mx-2 cursor-pointer border-t border-ink/[.06] px-2 transition-colors hover:bg-sand-2/70'
-                : 'my-1 rounded-xl border border-pos/25 bg-pos/10 px-2.5'
+                ? '-mx-3 cursor-pointer border-t border-ink/[.06] px-3 transition-colors hover:bg-sand-2/70 sm:-mx-6 sm:px-6'
+                : '-mx-3 border-y border-pos/25 bg-pos/10 px-3 sm:-mx-6 sm:px-6'
             }`}
           >
             <span className="w-9 flex-none text-center sm:w-11">
