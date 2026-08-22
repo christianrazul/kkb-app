@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.util.UUID
 
 @RestController
@@ -93,6 +94,8 @@ data class CreateExpenseRequest(
 
     @field:PastOrPresent
     val expenseDate: LocalDate,
+
+    val expenseTime: LocalTime? = null,
 ) {
     fun toCommand() = CreateExpenseCommand(
         description = description,
@@ -101,6 +104,7 @@ data class CreateExpenseRequest(
         paidByUserId = paidByUserId,
         participantIds = participantIds,
         expenseDate = expenseDate,
+        expenseTime = expenseTime,
     )
 }
 
@@ -113,6 +117,7 @@ data class ExpenseResponse(
     val phpAmount: String,
     val paidByUserId: UUID,
     val expenseDate: LocalDate,
+    val expenseTime: LocalTime?,
     val createdAt: Instant,
     val shares: List<ExpenseShareResponse>,
     val lockedRate: LockedRateResponse,
@@ -141,6 +146,7 @@ private fun ExpenseRecord.toResponse(): ExpenseResponse {
         phpAmount = SupportedCurrency.PHP.formatMinorUnits(expense.phpAmountMinor),
         paidByUserId = expense.paidByUserId,
         expenseDate = expense.expenseDate,
+        expenseTime = expense.expenseTime,
         createdAt = expense.createdAt,
         shares = shares.map { share ->
             ExpenseShareResponse(

@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer 
 import type { ReactNode } from 'react'
 import { expenseRepository } from '@/data'
 import type { NewExpenseInput, SettlementInput } from '@/data/types'
-import type { Expense, Group, Member } from '@/domain/types'
+import type { Expense, Group, Member, TimeFormat } from '@/domain/types'
 import { useAuth } from './AuthProvider'
 
 interface DataState {
@@ -46,7 +46,7 @@ interface DataContextValue extends DataState {
   deleteExpense: (groupId: string, expenseId: string) => Promise<void>
   recordSettlement: (input: SettlementInput) => Promise<void>
   createGroup: (name: string, tileColor: string) => Promise<void>
-  updateGroup: (groupId: string, name: string, tileColor: string) => Promise<void>
+  updateGroup: (groupId: string, name: string, tileColor: string, timeFormat: TimeFormat) => Promise<void>
   deleteGroup: (groupId: string) => Promise<void>
   inviteMember: (groupId: string, email: string) => Promise<void>
   revokeInvite: (groupId: string, inviteId: string) => Promise<void>
@@ -114,8 +114,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         await expenseRepository.createGroup(name, tileColor)
         await load()
       },
-      updateGroup: async (groupId, name, tileColor) => {
-        await expenseRepository.updateGroup(groupId, name, tileColor)
+      updateGroup: async (groupId, name, tileColor, timeFormat) => {
+        await expenseRepository.updateGroup(groupId, name, tileColor, timeFormat)
         await load()
       },
       deleteGroup: async (groupId) => {

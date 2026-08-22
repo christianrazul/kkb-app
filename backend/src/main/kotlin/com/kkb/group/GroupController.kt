@@ -39,7 +39,12 @@ class GroupController(
         @Valid @RequestBody request: SaveGroupRequest,
     ): GroupResponse {
         val actor = authenticatedUserResolver.resolve(authentication)
-        return groupApplicationService.create(actor.id, request.name, request.tileColor).toResponse()
+        return groupApplicationService.create(
+            actor.id,
+            request.name,
+            request.tileColor,
+            request.timeFormat,
+        ).toResponse()
     }
 
     @PatchMapping("/{groupId}")
@@ -49,7 +54,13 @@ class GroupController(
         @Valid @RequestBody request: SaveGroupRequest,
     ): GroupResponse {
         val actor = authenticatedUserResolver.resolve(authentication)
-        return groupApplicationService.update(groupId, actor.id, request.name, request.tileColor).toResponse()
+        return groupApplicationService.update(
+            groupId,
+            actor.id,
+            request.name,
+            request.tileColor,
+            request.timeFormat,
+        ).toResponse()
     }
 
     @DeleteMapping("/{groupId}")
@@ -100,6 +111,9 @@ data class SaveGroupRequest(
 
     @field:Pattern(regexp = "^#[0-9A-Fa-f]{6}$")
     val tileColor: String,
+
+    @field:Pattern(regexp = "^(TWELVE_HOUR|TWENTY_FOUR_HOUR)$")
+    val timeFormat: String? = null,
 )
 
 data class InviteGroupMemberRequest(
@@ -113,6 +127,7 @@ data class GroupResponse(
     val id: UUID,
     val name: String,
     val tileColor: String,
+    val timeFormat: String,
     val owner: Boolean,
     val members: List<GroupMemberResponse>,
     val formerMembers: List<GroupMemberResponse>,
@@ -139,6 +154,7 @@ private fun GroupRecord.toResponse() = GroupResponse(
     id = group.id,
     name = group.name,
     tileColor = group.tileColor,
+    timeFormat = group.timeFormat,
     owner = actorIsOwner,
     members = members.map { record ->
         GroupMemberResponse(

@@ -1,6 +1,6 @@
 import { netOf, pairNet } from '@/domain/balances'
 import { conv, fmt, fmtSigned } from '@/domain/currency'
-import { dateBits, initials } from '@/domain/format'
+import { dateBits, formatTime, initials } from '@/domain/format'
 import type { CurrencyCode, Expense, Group, Member } from '@/domain/types'
 
 export type Tone = 'pos' | 'neg' | 'muted'
@@ -20,9 +20,23 @@ function byId(members: Member[]): (id: string) => Member {
   return (id) => map.get(id)!
 }
 
-/** Newest first, matching the mockup's date-then-id tiebreak. */
+/** Newest first by expense date/time, with stable fallbacks for untimed records. */
 function newestFirst(a: Expense, b: Expense): number {
-  return b.date.localeCompare(a.date) || b.id.localeCompare(a.id)
+  const dateOrder = b.date.localeCompare(a.date)
+  if (dateOrder) return dateOrder
+  if (a.time && !b.time) return -1
+  if (!a.time && b.time) return 1
+  const timeOrder = (b.time ?? '').localeCompare(a.time ?? '')
+  return timeOrder || b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id)
+}
+
+function oldestFirst(a: Expense, b: Expense): number {
+  const dateOrder = a.date.localeCompare(b.date)
+  if (dateOrder) return dateOrder
+  if (a.time && !b.time) return -1
+  if (!a.time && b.time) return 1
+  const timeOrder = (a.time ?? '').localeCompare(b.time ?? '')
+  return timeOrder || a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)
 }
 
 export interface SidebarGroupVM {
@@ -164,6 +178,7 @@ export interface GroupExpenseVM {
   id: string
   mon: string
   day: string
+  time?: string
   desc: string
   paidLine: string
   dirLabel: string
@@ -209,7 +224,7 @@ export function groupView(
       expense.parts.includes(listOptions.memberId)
     ))
     .sort((a, b) => {
-      if (listOptions.sort === 'oldest') return -newestFirst(a, b)
+      if (listOptions.sort === 'oldest') return oldestFirst(a, b)
       if (listOptions.sort === 'highest') return b.phpAmount - a.phpAmount || newestFirst(a, b)
       if (listOptions.sort === 'lowest') return a.phpAmount - b.phpAmount || newestFirst(a, b)
       return newestFirst(a, b)
@@ -270,6 +285,7 @@ export function groupView(
       id: e.id,
       mon: d.mon,
       day: d.day,
+      time: e.time ? formatTime(e.time, group.timeFormat) : undefined,
       desc: e.settle ? `${payer.name} paid ${member(e.parts[0]).name}` : e.desc,
       paidLine: e.settle
         ? 'settlement'

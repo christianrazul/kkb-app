@@ -1,4 +1,5 @@
 export type CurrencyCode = 'PHP' | 'USD' | 'EUR' | 'JPY' | 'SGD'
+export type TimeFormat = 'TWELVE_HOUR' | 'TWENTY_FOUR_HOUR'
 
 export interface Member {
   id: string
@@ -24,6 +25,8 @@ export interface Group {
   name: string
   /** Avatar/tile background color. */
   tile: string
+  /** How expense times are displayed to every group member. */
+  timeFormat: TimeFormat
   /** Member ids belonging to the group. */
   members: string[]
   /** Removed member ids retained so historical activity remains readable. */
@@ -52,6 +55,10 @@ export interface Expense {
   shares: ExpenseShare[]
   /** ISO date, YYYY-MM-DD. */
   date: string
+  /** Optional local Philippine time, HH:mm. */
+  time?: string
+  /** ISO instant when the record was created. */
+  createdAt: string
   /** True when this record is a settlement payment rather than a shared cost. */
   settle: boolean
 }

@@ -8,7 +8,7 @@ import { useAuth } from '../providers/AuthProvider'
 import { useData } from '../providers/DataProvider'
 import { fmt } from '@/domain/currency'
 import type { CurrencyCode, Expense, Group } from '@/domain/types'
-import { todayIso } from '@/domain/format'
+import { philippineDateTime } from '@/domain/format'
 
 const selectCls =
   'rounded-xl border border-ink/15 bg-white px-2 py-[11px] text-[13.5px] text-ink outline-none'
@@ -24,6 +24,7 @@ export function ExpenseModal({ group, expense, onClose }: ExpenseModalProps) {
   const { cur } = useCurrency()
   const { meId } = useAuth()
   const { memberById, addExpense, updateExpense, deleteExpense } = useData()
+  const [initialDateTime] = useState(philippineDateTime)
 
   const [desc, setDesc] = useState(expense?.desc ?? '')
   const [amount, setAmount] = useState(expense ? String(expense.amount) : '')
@@ -36,7 +37,8 @@ export function ExpenseModal({ group, expense, onClose }: ExpenseModalProps) {
     const activeParts = expense.parts.filter((id) => group.members.includes(id))
     return activeParts.length > 0 ? activeParts : group.members
   })
-  const [date, setDate] = useState(expense?.date ?? todayIso())
+  const [date, setDate] = useState(expense?.date ?? initialDateTime.date)
+  const [time, setTime] = useState(expense ? expense.time ?? '' : initialDateTime.time)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -44,8 +46,11 @@ export function ExpenseModal({ group, expense, onClose }: ExpenseModalProps) {
     !group.members.includes(expense.paidBy) || expense.parts.some((id) => !group.members.includes(id))
   ))
 
+  const now = philippineDateTime()
   const amt = parseFloat(amount)
-  const valid = desc.trim().length > 0 && amt > 0 && parts.length > 0
+  const dateIsNotFuture = Boolean(date) && date <= now.date
+  const timeIsNotFuture = !time || date < now.date || (date === now.date && time <= now.time)
+  const valid = desc.trim().length > 0 && amt > 0 && parts.length > 0 && dateIsNotFuture && timeIsNotFuture
   const splitHint = valid ? `${fmt(amt / parts.length, fCur)} each` : `${parts.length} selected`
 
   const toggle = (id: string) =>
@@ -56,7 +61,16 @@ export function ExpenseModal({ group, expense, onClose }: ExpenseModalProps) {
     setSaving(true)
     setError(null)
     try {
-      const input = { gid: group.id, desc: desc.trim(), amount: amount.trim(), cur: fCur, paidBy, parts, date }
+      const input = {
+        gid: group.id,
+        desc: desc.trim(),
+        amount: amount.trim(),
+        cur: fCur,
+        paidBy,
+        parts,
+        date,
+        time: time || undefined,
+      }
       if (expense) await updateExpense(expense.id, input)
       else await addExpense(input)
       onClose()
@@ -124,13 +138,37 @@ export function ExpenseModal({ group, expense, onClose }: ExpenseModalProps) {
           </select>
         </label>
 
-        <Field
-          label="EXPENSE DATE"
-          type="date"
-          value={date}
-          max={todayIso()}
-          onChange={(event) => setDate(event.target.value)}
-        />
+        <div className="grid grid-cols-2 gap-2.5">
+          <Field
+            label="EXPENSE DATE"
+            type="date"
+            value={date}
+            max={now.date}
+            onChange={(event) => setDate(event.target.value)}
+          />
+          <Field
+            label="TIME (OPTIONAL)"
+            type="time"
+            step={60}
+            value={time}
+            max={date === now.date ? now.time : undefined}
+            onChange={(event) => setTime(event.target.value)}
+          />
+        </div>
+
+        {time && (
+          <button
+            type="button"
+            onClick={() => setTime('')}
+            className="-mt-2 min-h-8 cursor-pointer self-end rounded-lg px-2 text-[11.5px] font-bold text-mute-2 transition-colors hover:bg-sand hover:text-ink"
+          >
+            Clear time
+          </button>
+        )}
+
+        {!timeIsNotFuture && (
+          <div className="text-[12px] font-semibold text-neg">Expense time cannot be in the future.</div>
+        )}
 
         <div className={fieldLabel}>
           SPLIT EQUALLY AMONG

@@ -12,6 +12,7 @@ import com.kkb.group.ExpenseGroupRepository
 import com.kkb.group.GroupMemberEntity
 import com.kkb.group.GroupMemberRepository
 import com.kkb.group.GroupRole
+import com.kkb.group.GroupTimeFormat
 import com.kkb.balance.GroupBalanceService
 import com.kkb.invitation.InvitationApplicationService
 import com.kkb.invitation.EmailOutboxRepository
@@ -35,6 +36,7 @@ import org.testcontainers.postgresql.PostgreSQLContainer
 import org.testcontainers.utility.DockerImageName
 import java.math.BigDecimal
 import java.time.LocalDate
+import java.time.LocalTime
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -326,6 +328,7 @@ class ExpenseApplicationServicePostgresTests @Autowired constructor(
                 paidByUserId = fixture.users.first(),
                 participantIds = fixture.users,
                 expenseDate = LocalDate.of(2025, 3, 7),
+                expenseTime = LocalTime.of(18, 30),
             ),
         )
 
@@ -340,11 +343,13 @@ class ExpenseApplicationServicePostgresTests @Autowired constructor(
                 paidByUserId = fixture.users[1],
                 participantIds = fixture.users.take(2),
                 expenseDate = LocalDate.of(2025, 3, 8),
+                expenseTime = LocalTime.of(19, 45),
             ),
         )
 
         assertEquals(created.expense.id, updated.expense.id)
         assertEquals("Updated dinner", updated.expense.description)
+        assertEquals(LocalTime.of(19, 45), updated.expense.expenseTime)
         assertEquals(2, updated.shares.size)
         assertEquals(1_001, updated.shares.sumOf(ExpenseShareEntity::originalAmountMinor))
 
@@ -400,6 +405,8 @@ class ExpenseApplicationServicePostgresTests @Autowired constructor(
         exchangeRateClient.reset()
         val ownerId = fixture.users.first()
         val memberId = fixture.users[1]
+
+        assertEquals(GroupTimeFormat.TWELVE_HOUR.name, groupRepository.findById(fixture.groupId).orElseThrow().timeFormat)
         val memberEmail = userRepository.findById(memberId).orElseThrow().email
         val date = LocalDate.of(2025, 3, 7)
         expenseApplicationService.create(
@@ -457,9 +464,16 @@ class ExpenseApplicationServicePostgresTests @Autowired constructor(
         }
         assertEquals("group_not_found", forbidden.code)
 
-        val updated = groupApplicationService.update(fixture.groupId, ownerId, "  Renamed group  ", "#c25e3a")
+        val updated = groupApplicationService.update(
+            fixture.groupId,
+            ownerId,
+            "  Renamed group  ",
+            "#c25e3a",
+            GroupTimeFormat.TWENTY_FOUR_HOUR.name,
+        )
         assertEquals("Renamed group", updated.group.name)
         assertEquals("#c25e3a", updated.group.tileColor)
+        assertEquals(GroupTimeFormat.TWENTY_FOUR_HOUR.name, updated.group.timeFormat)
 
         groupApplicationService.delete(fixture.groupId, ownerId)
         assertEquals(false, groupRepository.existsById(fixture.groupId))

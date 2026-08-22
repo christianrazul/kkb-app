@@ -6,6 +6,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.Table
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.util.UUID
 
 @Entity
@@ -37,6 +38,9 @@ class ExpenseEntity(
 
     @Column(name = "expense_date", nullable = false)
     var expenseDate: LocalDate,
+
+    @Column(name = "expense_time")
+    var expenseTime: LocalTime? = null,
 
     @Column(name = "created_at", nullable = false, updatable = false)
     var createdAt: Instant = Instant.now(),

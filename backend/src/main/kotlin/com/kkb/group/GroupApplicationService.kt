@@ -38,12 +38,18 @@ class GroupApplicationService(
             .map { group -> assemble(group, actorUserId) }
 
     @Transactional
-    fun create(actorUserId: UUID, name: String, tileColor: String): GroupRecord {
+    fun create(
+        actorUserId: UUID,
+        name: String,
+        tileColor: String,
+        timeFormat: String? = null,
+    ): GroupRecord {
         val now = Instant.now(clock)
         val group = groupRepository.save(
             ExpenseGroupEntity(
                 name = normalizeName(name),
                 tileColor = tileColor,
+                timeFormat = GroupTimeFormat.parse(timeFormat).name,
                 createdByUserId = actorUserId,
                 createdAt = now,
                 updatedAt = now,
@@ -61,11 +67,18 @@ class GroupApplicationService(
     }
 
     @Transactional
-    fun update(groupId: UUID, actorUserId: UUID, name: String, tileColor: String): GroupRecord {
+    fun update(
+        groupId: UUID,
+        actorUserId: UUID,
+        name: String,
+        tileColor: String,
+        timeFormat: String? = null,
+    ): GroupRecord {
         requireOwner(groupId, actorUserId)
         val group = requireGroup(groupId)
         group.name = normalizeName(name)
         group.tileColor = tileColor
+        if (timeFormat != null) group.timeFormat = GroupTimeFormat.parse(timeFormat).name
         group.updatedAt = Instant.now(clock)
         return assemble(groupRepository.save(group), actorUserId)
     }

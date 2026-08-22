@@ -1,6 +1,6 @@
 import { setPhpRates } from '@/domain/currency'
 import { todayIso } from '@/domain/format'
-import type { CurrencyCode, Expense, Group, Member } from '@/domain/types'
+import type { CurrencyCode, Expense, Group, Member, TimeFormat } from '@/domain/types'
 import type { ExpenseRepository, NewExpenseInput, SettlementInput } from '../types'
 import { request } from './apiClient'
 
@@ -8,6 +8,7 @@ interface GroupApiResponse {
   id: string
   name: string
   tileColor: string
+  timeFormat: TimeFormat
   owner: boolean
   members: Array<{
     userId: string
@@ -38,6 +39,8 @@ interface ExpenseApiResponse {
   phpAmount: string
   paidByUserId: string
   expenseDate: string
+  expenseTime?: string
+  createdAt: string
   shares: Array<{ userId: string; originalAmount: string; phpAmount: string }>
 }
 
@@ -50,6 +53,7 @@ interface SettlementApiResponse {
   originalCurrency: CurrencyCode
   phpAmount: string
   settlementDate: string
+  createdAt: string
 }
 
 interface FxRatesApiResponse {
@@ -81,6 +85,7 @@ function mapGroup(group: GroupApiResponse): Group {
     id: group.id,
     name: group.name,
     tile: group.tileColor,
+    timeFormat: group.timeFormat ?? 'TWELVE_HOUR',
     members: group.members.map((member) => member.userId),
     formerMembers: (group.formerMembers ?? []).map((member) => member.userId),
     owner: group.owner,
@@ -104,6 +109,8 @@ function mapExpense(expense: ExpenseApiResponse): Expense {
       phpAmount: Number(share.phpAmount),
     })),
     date: expense.expenseDate,
+    time: expense.expenseTime?.slice(0, 5),
+    createdAt: expense.createdAt,
     settle: false,
   }
 }
@@ -120,6 +127,7 @@ function mapSettlement(settlement: SettlementApiResponse): Expense {
     parts: [settlement.toUserId],
     shares: [],
     date: settlement.settlementDate,
+    createdAt: settlement.createdAt,
     settle: true,
   }
 }
@@ -161,6 +169,7 @@ export class HttpExpenseRepository implements ExpenseRepository {
         paidByUserId: input.paidBy,
         participantIds: input.parts,
         expenseDate: input.date,
+        expenseTime: input.time || null,
       }),
     })
     return mapExpense(response)
@@ -176,6 +185,7 @@ export class HttpExpenseRepository implements ExpenseRepository {
         paidByUserId: input.paidBy,
         participantIds: input.parts,
         expenseDate: input.date,
+        expenseTime: input.time || null,
       }),
     })
     return mapExpense(response)
@@ -207,10 +217,10 @@ export class HttpExpenseRepository implements ExpenseRepository {
     })
   }
 
-  async updateGroup(groupId: string, name: string, tileColor: string): Promise<void> {
+  async updateGroup(groupId: string, name: string, tileColor: string, timeFormat: TimeFormat): Promise<void> {
     await request(`/api/groups/${groupId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ name, tileColor }),
+      body: JSON.stringify({ name, tileColor, timeFormat }),
     })
   }
 

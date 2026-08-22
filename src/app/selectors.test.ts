@@ -12,6 +12,7 @@ const group: Group = {
   id: 'group',
   name: 'Trip',
   tile: '#5b7ec9',
+  timeFormat: 'TWELVE_HOUR',
   members: members.map((member) => member.id),
   formerMembers: [],
   owner: true,
@@ -44,6 +45,41 @@ describe('group expense list options', () => {
     expect(view({ sort: 'newest', currency: 'all', memberId: 'c' }).expenseRows.map((row) => row.id))
       .toEqual(['settlement', 'php', 'eur'])
   })
+
+  it('sorts same-day expenses by their optional time and formats it for the group', () => {
+    const sameDay = [
+      expense('untimed', '2026-01-05', 10, 10, 'PHP', 'a', ['a']),
+      expense('morning', '2026-01-05', 10, 10, 'PHP', 'a', ['a'], '08:15'),
+      expense('evening', '2026-01-05', 10, 10, 'PHP', 'a', ['a'], '18:45'),
+    ]
+
+    const twelveHourRows = groupView(group, members, sameDay, 'PHP', 'a', 0.01, true).expenseRows
+    expect(twelveHourRows.map((row) => row.id)).toEqual(['evening', 'morning', 'untimed'])
+    expect(twelveHourRows.map((row) => row.time)).toEqual(['6:45 PM', '8:15 AM', undefined])
+
+    const oldestRows = groupView(
+      group,
+      members,
+      sameDay,
+      'PHP',
+      'a',
+      0.01,
+      true,
+      { sort: 'oldest', currency: 'all', memberId: 'all' },
+    ).expenseRows
+    expect(oldestRows.map((row) => row.id)).toEqual(['morning', 'evening', 'untimed'])
+
+    const twentyFourHourRows = groupView(
+      { ...group, timeFormat: 'TWENTY_FOUR_HOUR' },
+      members,
+      sameDay,
+      'PHP',
+      'a',
+      0.01,
+      true,
+    ).expenseRows
+    expect(twentyFourHourRows.map((row) => row.time)).toEqual(['18:45', '08:15', undefined])
+  })
 })
 
 function rows(sort: 'newest' | 'oldest' | 'highest' | 'lowest' = 'newest'): string[] {
@@ -62,6 +98,7 @@ function expense(
   cur: Expense['cur'],
   paidBy: string,
   parts: string[],
+  time?: string,
 ): Expense {
   return {
     id,
@@ -78,6 +115,8 @@ function expense(
       phpAmount: phpAmount / parts.length,
     })),
     date,
+    time,
+    createdAt: `${date}T00:00:00Z`,
     settle: false,
   }
 }
@@ -94,6 +133,7 @@ function settlement(id: string, date: string, amount: number, from: string, to: 
     parts: [to],
     shares: [],
     date,
+    createdAt: `${date}T00:00:00Z`,
     settle: true,
   }
 }

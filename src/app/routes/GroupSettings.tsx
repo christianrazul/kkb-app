@@ -6,7 +6,7 @@ import { Field } from '../components/Field'
 import { copyText } from '../copyText'
 import { useAuth } from '../providers/AuthProvider'
 import { useData } from '../providers/DataProvider'
-import type { Group } from '@/domain/types'
+import type { Group, TimeFormat } from '@/domain/types'
 
 const COLORS = ['#5b7ec9', '#c98a2e', '#5a9260', '#b0568f', '#c25e3a']
 
@@ -36,6 +36,7 @@ function GroupSettingsContent({ group }: { group: Group }) {
   } = useData()
   const [name, setName] = useState(group.name)
   const [tileColor, setTileColor] = useState(group.tile)
+  const [timeFormat, setTimeFormat] = useState<TimeFormat>(group.timeFormat)
   const [email, setEmail] = useState('')
   const [deleteConfirmation, setDeleteConfirmation] = useState('')
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false)
@@ -60,7 +61,7 @@ function GroupSettingsContent({ group }: { group: Group }) {
 
   const saveGeneral = () => run(
     'general',
-    () => updateGroup(group.id, name.trim(), tileColor),
+    () => updateGroup(group.id, name.trim(), tileColor, timeFormat),
     'Group details saved.',
   )
 
@@ -151,6 +152,20 @@ function GroupSettingsContent({ group }: { group: Group }) {
               ))}
             </div>
           </div>
+          <label className="flex flex-col gap-1.5 text-[11.5px] font-bold tracking-[.5px] text-mute-2">
+            TIME FORMAT
+            <select
+              value={timeFormat}
+              onChange={(event) => setTimeFormat(event.target.value as TimeFormat)}
+              className="cursor-pointer rounded-xl border border-ink/15 bg-white px-3 py-[11px] text-[14px] font-normal tracking-normal text-ink outline-none focus:border-terra"
+            >
+              <option value="TWELVE_HOUR">12-hour (e.g. 2:30 PM)</option>
+              <option value="TWENTY_FOUR_HOUR">24-hour (e.g. 14:30)</option>
+            </select>
+            <span className="text-[11.5px] font-normal tracking-normal text-mute">
+              Expense times use Philippine time (Asia/Manila).
+            </span>
+          </label>
           <Button onClick={() => void saveGeneral()} disabled={!name.trim() || busy !== null} className="min-h-11 self-start px-5">
             {busy === 'general' ? 'Saving…' : 'Save changes'}
           </Button>

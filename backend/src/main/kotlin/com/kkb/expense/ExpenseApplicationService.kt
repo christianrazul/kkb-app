@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.LocalTime
 import java.util.UUID
 
 @Service
@@ -39,6 +41,7 @@ class ExpenseApplicationService(
             paidByUserId = command.paidByUserId,
             participantIds = command.participantIds,
             expenseDate = command.expenseDate,
+            expenseTime = command.expenseTime,
         )
     }
 
@@ -64,6 +67,7 @@ class ExpenseApplicationService(
             paidByUserId = command.paidByUserId,
             participantIds = command.participantIds,
             expenseDate = command.expenseDate,
+            expenseTime = command.expenseTime,
         )
     }
 
@@ -89,6 +93,24 @@ class ExpenseApplicationService(
                 HttpStatus.UNPROCESSABLE_ENTITY,
                 "future_expense_date",
                 "Expense date cannot be in the future",
+            )
+        }
+
+        if (command.expenseTime?.let { it.second != 0 || it.nano != 0 } == true) {
+            throw ApiException(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                "invalid_expense_time",
+                "Expense time must use hour and minute precision",
+            )
+        }
+
+        if (command.expenseTime != null &&
+            LocalDateTime.of(command.expenseDate, command.expenseTime) > LocalDateTime.now(clock)
+        ) {
+            throw ApiException(
+                HttpStatus.UNPROCESSABLE_ENTITY,
+                "future_expense_time",
+                "Expense time cannot be in the future",
             )
         }
 
@@ -174,6 +196,7 @@ data class CreateExpenseCommand(
     val paidByUserId: UUID,
     val participantIds: List<UUID>,
     val expenseDate: LocalDate,
+    val expenseTime: LocalTime? = null,
 )
 
 data class ExpenseRecord(
@@ -201,6 +224,7 @@ class ExpenseTransactionWriter(
         paidByUserId: UUID,
         participantIds: List<UUID>,
         expenseDate: LocalDate,
+        expenseTime: LocalTime?,
     ): ExpenseRecord {
         groupAccessService.requireMembership(groupId, actorUserId)
         groupAccessService.requireExpenseMembers(groupId, paidByUserId, participantIds)
@@ -215,6 +239,7 @@ class ExpenseTransactionWriter(
                 phpAmountMinor = phpAmountMinor,
                 paidByUserId = paidByUserId,
                 expenseDate = expenseDate,
+                expenseTime = expenseTime,
                 createdAt = Instant.now(clock),
             ),
         )
@@ -241,6 +266,7 @@ class ExpenseTransactionWriter(
         paidByUserId: UUID,
         participantIds: List<UUID>,
         expenseDate: LocalDate,
+        expenseTime: LocalTime?,
     ): ExpenseRecord {
         groupAccessService.requireMembership(groupId, actorUserId)
         groupAccessService.requireExpenseMembers(groupId, paidByUserId, participantIds)
@@ -252,6 +278,7 @@ class ExpenseTransactionWriter(
         expense.phpAmountMinor = phpAmountMinor
         expense.paidByUserId = paidByUserId
         expense.expenseDate = expenseDate
+        expense.expenseTime = expenseTime
         val savedExpense = expenseRepository.save(expense)
 
         expenseShareRepository.deleteAllByExpenseId(expense.id)

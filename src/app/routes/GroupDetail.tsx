@@ -132,9 +132,10 @@ export function GroupDetail() {
                 : '-mx-3 border-y border-pos/25 bg-pos/10 px-3 sm:-mx-6 sm:px-6'
             }`}
           >
-            <span className="w-9 flex-none text-center sm:w-11">
+            <span className="w-14 flex-none text-center sm:w-16">
               <span className="block text-[10px] font-bold tracking-[.8px] text-mute-3">{e.mon}</span>
               <span className="block font-display text-[17px] font-bold text-mute-4">{e.day}</span>
+              {e.time && <span className="mt-0.5 block whitespace-nowrap text-[9.5px] font-semibold text-mute">{e.time}</span>}
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-[14px] font-bold [overflow-wrap:anywhere]">{e.desc}</span>

@@ -1,4 +1,4 @@
-import type { CurrencyCode, Expense, Group, Member } from '@/domain/types'
+import type { CurrencyCode, Expense, Group, Member, TimeFormat } from '@/domain/types'
 
 export interface AuthUser {
   id: string
@@ -25,6 +25,7 @@ export interface NewExpenseInput {
   paidBy: string
   parts: string[]
   date: string
+  time?: string
 }
 
 export interface SettlementInput {
@@ -46,7 +47,7 @@ export interface ExpenseRepository {
   deleteExpense(groupId: string, expenseId: string): Promise<void>
   recordSettlement(input: SettlementInput): Promise<Expense>
   createGroup(name: string, tileColor: string): Promise<void>
-  updateGroup(groupId: string, name: string, tileColor: string): Promise<void>
+  updateGroup(groupId: string, name: string, tileColor: string, timeFormat: TimeFormat): Promise<void>
   deleteGroup(groupId: string): Promise<void>
   inviteMember(groupId: string, email: string): Promise<void>
   revokeInvite(groupId: string, inviteId: string): Promise<void>
