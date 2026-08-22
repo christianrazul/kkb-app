@@ -48,15 +48,26 @@ export function GroupDetail() {
       <div className="mb-5 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 sm:flex sm:gap-4">
         <Avatar label={vm.initial} color={vm.tile} size={54} radius={16} fontSize={22} display />
         <div className="min-w-0 flex-1">
-          <h1 className="min-w-0 font-display text-[23px] font-bold [overflow-wrap:anywhere] sm:text-[25px]">{vm.name}</h1>
+          <div className="flex min-w-0 items-center gap-2">
+            <h1 className="min-w-0 font-display text-[23px] font-bold [overflow-wrap:anywhere] sm:text-[25px]">{vm.name}</h1>
+            {group.owner && (
+              <button
+                type="button"
+                aria-label="Group settings"
+                title="Group settings"
+                onClick={() => navigate(`/groups/${group.id}/settings`)}
+                className="flex size-11 flex-none items-center justify-center rounded-full border border-ink/15 bg-cream text-mute-4 transition-colors hover:border-ink/25 hover:bg-sand-2 hover:text-ink active:bg-sand-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="size-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.09A1.7 1.7 0 0 0 8.94 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.57 15a1.7 1.7 0 0 0-1.56-1H3v-4h.09A1.7 1.7 0 0 0 4.6 8.94a1.7 1.7 0 0 0-.34-1.88L4.2 7l2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.57 1.7 1.7 0 0 0 10 3.01V3h4v.09A1.7 1.7 0 0 0 15.06 4.6a1.7 1.7 0 0 0 1.88-.34L17 4.2 19.83 7l-.06.06A1.7 1.7 0 0 0 19.43 9 1.7 1.7 0 0 0 21 10h.09v4H21a1.7 1.7 0 0 0-1.6 1Z" />
+                </svg>
+              </button>
+            )}
+          </div>
           <div className="mt-0.5 text-[12.5px] text-mute">{vm.meta}</div>
         </div>
         <div className="col-span-2 grid grid-cols-2 gap-2.5 sm:ml-auto sm:flex">
-          {group.owner && (
-            <Button variant="secondary" onClick={() => navigate(`/groups/${group.id}/settings`)} className="min-h-11 w-full whitespace-nowrap px-4 py-[11px] text-[13px] sm:w-auto">
-              Settings
-            </Button>
-          )}
           <Button variant="secondary" onClick={() => setModal('settle')} className="min-h-11 w-full whitespace-nowrap px-4 py-[11px] text-[13px] sm:w-auto sm:px-[18px]">
             Settle up
           </Button>
@@ -94,43 +105,46 @@ export function GroupDetail() {
         </aside>
 
         <section aria-label="Group expenses" className="order-2 min-w-0 xl:order-1">
-          <div className="mb-3 grid w-full grid-cols-3 gap-1.5 sm:ml-auto sm:w-auto sm:justify-end sm:[grid-template-columns:repeat(3,122px)]">
-            <select
-              aria-label="Sort expenses"
-              value={sort}
-              onChange={(event) => setSort(event.target.value as ExpenseSort)}
-              className="h-10 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none sm:w-[122px]"
-            >
-              <option value="newest">Newest</option>
-              <option value="oldest">Oldest</option>
-              <option value="highest">Highest</option>
-              <option value="lowest">Lowest</option>
-            </select>
-            <select
-              aria-label="Filter by currency"
-              value={currencyFilter}
-              onChange={(event) => setCurrencyFilter(event.target.value as CurrencyCode | 'all')}
-              className="h-10 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none sm:w-[122px]"
-            >
-              <option value="all">All currencies</option>
-              {CURRENCIES.map((currency) => <option key={currency.code} value={currency.code}>{currency.label}</option>)}
-            </select>
-            <select
-              aria-label="Filter by member"
-              value={memberFilter}
-              onChange={(event) => setMemberFilter(event.target.value)}
-              className="h-10 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none sm:w-[122px]"
-            >
-              <option value="all">All members</option>
-              {filterMemberIds.map((id) => (
-                <option key={id} value={id}>
-                  {memberByLabel(members, id)}{group.formerMembers.includes(id) ? ' (former)' : ''}
-                </option>
-              ))}
-            </select>
-          </div>
-
           <div className="overflow-hidden rounded-[18px] border border-ink/[.08] bg-cream px-3 sm:px-5">
+            <div className="-mx-3 flex flex-col gap-3 border-b border-ink/[.06] px-3 py-3 sm:-mx-5 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+              <h2 className="font-display text-[15px] font-bold">Expenses</h2>
+              <div className="grid w-full grid-cols-3 gap-1.5 sm:w-auto sm:[grid-template-columns:repeat(3,122px)]">
+                <select
+                  aria-label="Sort expenses"
+                  value={sort}
+                  onChange={(event) => setSort(event.target.value as ExpenseSort)}
+                  className="h-10 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none transition-shadow focus:border-brand focus:ring-2 focus:ring-brand/20 sm:w-[122px]"
+                >
+                  <option value="newest">Newest</option>
+                  <option value="oldest">Oldest</option>
+                  <option value="highest">Highest</option>
+                  <option value="lowest">Lowest</option>
+                </select>
+                <select
+                  aria-label="Filter by currency"
+                  value={currencyFilter}
+                  onChange={(event) => setCurrencyFilter(event.target.value as CurrencyCode | 'all')}
+                  className="h-10 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none transition-shadow focus:border-brand focus:ring-2 focus:ring-brand/20 sm:w-[122px]"
+                >
+                  <option value="all">All currencies</option>
+                  {CURRENCIES.map((currency) => <option key={currency.code} value={currency.code}>{currency.label}</option>)}
+                </select>
+                <select
+                  aria-label="Filter by member"
+                  value={memberFilter}
+                  onChange={(event) => setMemberFilter(event.target.value)}
+                  className="h-10 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none transition-shadow focus:border-brand focus:ring-2 focus:ring-brand/20 sm:w-[122px]"
+                >
+                  <option value="all">All members</option>
+                  {filterMemberIds.map((id) => (
+                    <option key={id} value={id}>
+                      {memberByLabel(members, id)}{group.formerMembers.includes(id) ? ' (former)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             {vm.expenseRows.length === 0 && (
               <EmptyState
                 title={expenses.some((expense) => expense.gid === group.id) ? 'No matching activity' : 'No expenses yet'}
