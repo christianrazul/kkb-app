@@ -11,6 +11,7 @@ import { ExpenseModal } from '../components/ExpenseModal'
 import { SettleModal } from '../components/SettleModal'
 import { eps } from '@/domain/currency'
 import { InviteModal } from '../components/InviteModal'
+import { EmptyState } from '../components/EmptyState'
 
 export function GroupDetail() {
   const { groupId } = useParams()
@@ -70,6 +71,13 @@ export function GroupDetail() {
       </div>
 
       <div className="rounded-[18px] border border-ink/[.08] bg-cream px-3 py-1.5 sm:px-6">
+        {vm.expenseRows.length === 0 && (
+          <EmptyState
+            title="No expenses yet"
+            message="Add an expense to start tracking this group."
+            className="min-h-[180px] py-10 sm:min-h-[200px]"
+          />
+        )}
         {vm.expenseRows.map((e) => (
           <div key={e.id} className="flex items-center gap-2.5 border-t border-ink/[.06] py-3.5 sm:gap-3.5">
             <span className="w-9 flex-none text-center sm:w-11">

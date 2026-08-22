@@ -10,6 +10,7 @@ import { eps, fmt, fmtSigned } from '@/domain/currency'
 import { Button } from '../components/Button'
 import { GroupModal } from '../components/GroupModal'
 import { KkbInviteModal } from '../components/KkbInviteModal'
+import { EmptyState } from '../components/EmptyState'
 
 const cardBase = 'rounded-[18px] border border-ink/[.08] bg-cream'
 const cardTitle = 'font-display text-[14.5px] font-bold'
@@ -20,7 +21,7 @@ export function Dashboard() {
   const [invitingToKkb, setInvitingToKkb] = useState(false)
   const { meId } = useAuth()
   const { cur } = useCurrency()
-  const { members, groups, expenses } = useData()
+  const { members, groups, expenses, loaded } = useData()
   const navigate = useNavigate()
 
   const vm = dashboardView(members, groups, expenses, cur, meId, eps(cur))
@@ -61,6 +62,13 @@ export function Dashboard() {
       <div className="mt-4 grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,.9fr)]">
         <div className={`${cardBase} px-4 pt-2 pb-2.5 sm:px-[22px]`}>
           <div className={`${cardTitle} pt-[14px] pb-1.5`}>Friends</div>
+          {loaded && vm.friendRows.length === 0 && (
+            <EmptyState
+              title="No balances yet"
+              message="Balances will appear after expenses are added."
+              className="min-h-[120px] border-t border-ink/[.06] py-7"
+            />
+          )}
           {vm.friendRows.map((f) => (
             <div
               key={f.id}
@@ -82,6 +90,13 @@ export function Dashboard() {
           <div className={`${cardBase} px-4 pt-2 pb-[18px] sm:px-[22px]`}>
             <div className={`${cardTitle} pt-[14px] pb-2.5`}>Your groups</div>
             <div className="flex flex-col gap-2">
+              {loaded && vm.groupCards.length === 0 && (
+                <EmptyState
+                  title="No groups yet"
+                  message="Create a group to start tracking expenses."
+                  className="min-h-[130px] rounded-[14px] bg-sand py-7"
+                />
+              )}
               {vm.groupCards.map((g) => (
                 <button
                   key={g.id}
@@ -102,6 +117,13 @@ export function Dashboard() {
 
           <div className={`${cardBase} px-4 pt-2 pb-3 sm:px-[22px]`}>
             <div className={`${cardTitle} pt-[14px] pb-1`}>Recent</div>
+            {loaded && vm.recentRows.length === 0 && (
+              <EmptyState
+                title="No recent activity yet"
+                message="Your latest expenses and settlements will appear here."
+                className="min-h-[110px] border-t border-ink/[.06] py-6"
+              />
+            )}
             {vm.recentRows.map((r) => (
               <div
                 key={r.id}
