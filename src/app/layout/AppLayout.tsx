@@ -5,12 +5,13 @@ import { DisplayCurrencySelect } from '../components/DisplayCurrencySelect'
 import { useCurrency } from '../providers/CurrencyProvider'
 import { useData } from '../providers/DataProvider'
 
-function useHeaderTitle(): string {
+function useHeaderTitle(): string | null {
   const { pathname } = useLocation()
   const { groupById } = useData()
   if (pathname.startsWith('/activity')) return 'Activity'
   if (pathname.startsWith('/groups/')) {
     const id = pathname.split('/')[2]
+    if (/^\/groups\/[^/]+\/?$/.test(pathname)) return null
     return groupById(id)?.name ?? 'Group'
   }
   return 'Dashboard'
@@ -64,7 +65,9 @@ export function AppLayout() {
                 <path d="M3 5h12M3 9h12M3 13h12" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
               </svg>
             </button>
-            <div className="min-w-0 truncate font-display text-[17px] font-bold sm:text-[18px]">{title}</div>
+            {title && (
+              <div className="min-w-0 truncate font-display text-[17px] font-bold sm:text-[18px]">{title}</div>
+            )}
           </div>
           <label className="flex flex-none items-center gap-2 text-[12.5px] font-bold text-mute-2">
             <span className="hidden sm:inline">Show in</span>

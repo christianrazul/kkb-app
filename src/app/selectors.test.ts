@@ -82,6 +82,33 @@ describe('group expense list options', () => {
   })
 })
 
+describe('group summary', () => {
+  it('uses a member count and Splitwise-style aggregate balance labels', () => {
+    const summary = groupView(group, members, expenses, 'PHP', 'a', 0.01, true)
+
+    expect(summary.meta).toBe('3 members')
+    expect(summary.balances.map(({ name, dirLabel, amtFmt, tone }) => ({ name, dirLabel, amtFmt, tone })))
+      .toEqual([
+        { name: 'Ana Cruz', dirLabel: 'gets back', amtFmt: '₱850', tone: 'pos' },
+        { name: 'Ben Lim', dirLabel: 'owes', amtFmt: '₱50', tone: 'neg' },
+        { name: 'Cara Ong', dirLabel: 'owes', amtFmt: '₱800', tone: 'neg' },
+      ])
+  })
+
+  it('uses singular member copy and a settled-up state without an amount', () => {
+    const soloGroup = { ...group, members: ['a'] }
+    const summary = groupView(soloGroup, members, [], 'PHP', 'a', 0.01, true)
+
+    expect(summary.meta).toBe('1 member')
+    expect(summary.balances[0]).toMatchObject({
+      name: 'Ana Cruz',
+      dirLabel: 'settled up',
+      amtFmt: '',
+      tone: 'muted',
+    })
+  })
+})
+
 function rows(sort: 'newest' | 'oldest' | 'highest' | 'lowest' = 'newest'): string[] {
   return view({ sort, currency: 'all', memberId: 'all' }).expenseRows.map((row) => row.id)
 }

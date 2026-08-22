@@ -44,11 +44,11 @@ export function GroupDetail() {
   const filterMemberIds = [...group.members, ...group.formerMembers]
 
   return (
-    <div className="rise mx-auto max-w-[880px]">
+    <div className="rise mx-auto max-w-[1180px]">
       <div className="mb-5 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 sm:flex sm:gap-4">
         <Avatar label={vm.initial} color={vm.tile} size={54} radius={16} fontSize={22} display />
         <div className="min-w-0 flex-1">
-          <div className="min-w-0 font-display text-[23px] font-bold [overflow-wrap:anywhere] sm:text-[25px]">{vm.name}</div>
+          <h1 className="min-w-0 font-display text-[23px] font-bold [overflow-wrap:anywhere] sm:text-[25px]">{vm.name}</h1>
           <div className="mt-0.5 text-[12.5px] text-mute">{vm.meta}</div>
         </div>
         <div className="col-span-2 grid grid-cols-2 gap-2.5 sm:ml-auto sm:flex">
@@ -66,87 +66,105 @@ export function GroupDetail() {
         </div>
       </div>
 
-      <div className="mb-[18px] flex flex-wrap items-center gap-2">
-        {vm.balances.map((b) => (
-          <span
-            key={b.id}
-            className="inline-flex max-w-full items-center gap-2 rounded-full border border-ink/[.09] bg-cream py-1.5 pr-[15px] pl-1.5 text-[12.5px]"
-          >
-            <Avatar label={b.initials} color={b.color} size={26} fontSize={10} />
-            <span className="min-w-0 truncate font-bold">{b.name}</span>
-            <span className={`flex-none whitespace-nowrap font-bold ${toneText[b.tone]}`}>{b.amtFmt}</span>
-          </span>
-        ))}
-        <div className="grid w-full grid-cols-3 gap-1.5 sm:ml-auto sm:w-auto">
-          <select
-            aria-label="Sort expenses"
-            value={sort}
-            onChange={(event) => setSort(event.target.value as ExpenseSort)}
-            className="h-10 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none sm:w-[122px]"
-          >
-            <option value="newest">Newest</option>
-            <option value="oldest">Oldest</option>
-            <option value="highest">Highest</option>
-            <option value="lowest">Lowest</option>
-          </select>
-          <select
-            aria-label="Filter by currency"
-            value={currencyFilter}
-            onChange={(event) => setCurrencyFilter(event.target.value as CurrencyCode | 'all')}
-            className="h-10 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none sm:w-[122px]"
-          >
-            <option value="all">All currencies</option>
-            {CURRENCIES.map((currency) => <option key={currency.code} value={currency.code}>{currency.label}</option>)}
-          </select>
-          <select
-            aria-label="Filter by member"
-            value={memberFilter}
-            onChange={(event) => setMemberFilter(event.target.value)}
-            className="h-10 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none sm:w-[122px]"
-          >
-            <option value="all">All members</option>
-            {filterMemberIds.map((id) => (
-              <option key={id} value={id}>
-                {memberByLabel(members, id)}{group.formerMembers.includes(id) ? ' (former)' : ''}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+      <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(220px,1fr)]">
+        <aside
+          aria-labelledby="group-balances-heading"
+          className="order-1 rounded-[18px] border border-ink/[.08] bg-cream px-4 pt-4 pb-2 sm:px-5 xl:order-2 xl:sticky xl:top-0"
+        >
+          <h2 id="group-balances-heading" className="font-display text-[15px] font-bold">
+            Group balances
+          </h2>
+          <p className="mt-0.5 pb-2 text-[11.5px] text-mute">
+            {displayCur === 'ORIGINAL' ? 'Balances shown in PHP.' : `Balances shown in ${displayCur}.`}
+          </p>
+          {vm.balances.map((balance) => (
+            <div key={balance.id} className="flex min-w-0 items-center gap-3 border-t border-ink/[.06] py-3">
+              <Avatar label={balance.initials} color={balance.color} size={36} fontSize={11} />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13.5px] font-bold [overflow-wrap:anywhere]">{balance.name}</span>
+                <span className={`mt-px block text-[12.5px] font-semibold ${toneText[balance.tone]}`}>
+                  {balance.dirLabel}
+                  {balance.amtFmt && (
+                    <span className="ml-1 whitespace-nowrap [font-variant-numeric:tabular-nums]">{balance.amtFmt}</span>
+                  )}
+                </span>
+              </span>
+            </div>
+          ))}
+        </aside>
 
-      <div className="overflow-hidden rounded-[18px] border border-ink/[.08] bg-cream px-3 sm:px-6">
-        {vm.expenseRows.length === 0 && (
-          <EmptyState
-            title={expenses.some((expense) => expense.gid === group.id) ? 'No matching activity' : 'No expenses yet'}
-            message={expenses.some((expense) => expense.gid === group.id) ? 'Adjust the filters to see more activity.' : 'Add an expense to start tracking this group.'}
-            className="min-h-[180px] py-10 sm:min-h-[200px]"
-          />
-        )}
-        {vm.expenseRows.map((e) => (
-          <div
-            key={e.id}
-            onClick={e.manageable ? () => setEditingExpenseId(e.id) : undefined}
-            className={`flex items-center gap-2.5 py-3 first:border-t-0 last:border-b-0 sm:gap-3.5 ${
-              e.manageable
-                ? '-mx-3 cursor-pointer border-t border-ink/[.06] px-3 transition-colors hover:bg-sand-2/70 sm:-mx-6 sm:px-6'
-                : '-mx-3 border-y border-pos/25 bg-pos/10 px-3 sm:-mx-6 sm:px-6'
-            }`}
-          >
-            <span className="w-14 flex-none text-center sm:w-16">
-              <span className="block text-[10px] font-bold tracking-[.8px] text-mute-3">{e.mon}</span>
-              <span className="block font-display text-[17px] font-bold text-mute-4">{e.day}</span>
-              {e.time && <span className="mt-0.5 block whitespace-nowrap text-[9.5px] font-semibold text-mute">{e.time}</span>}
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-[14px] font-bold [overflow-wrap:anywhere]">{e.desc}</span>
-              <span className="mt-px block text-[12px] text-mute">{e.paidLine}</span>
-            </span>
-            <span className="flex-none whitespace-nowrap text-right">
-              <span className="block text-[11px] text-mute">{e.dirLabel}</span>
-              <span className={`block text-[14px] font-bold ${toneText[e.tone]}`}>{e.shareFmt}</span>
-            </span>
+        <section aria-label="Group expenses" className="order-2 min-w-0 xl:order-1">
+          <div className="mb-3 grid w-full grid-cols-3 gap-1.5 sm:ml-auto sm:w-auto sm:justify-end sm:[grid-template-columns:repeat(3,122px)]">
+            <select
+              aria-label="Sort expenses"
+              value={sort}
+              onChange={(event) => setSort(event.target.value as ExpenseSort)}
+              className="h-10 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none sm:w-[122px]"
+            >
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="highest">Highest</option>
+              <option value="lowest">Lowest</option>
+            </select>
+            <select
+              aria-label="Filter by currency"
+              value={currencyFilter}
+              onChange={(event) => setCurrencyFilter(event.target.value as CurrencyCode | 'all')}
+              className="h-10 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none sm:w-[122px]"
+            >
+              <option value="all">All currencies</option>
+              {CURRENCIES.map((currency) => <option key={currency.code} value={currency.code}>{currency.label}</option>)}
+            </select>
+            <select
+              aria-label="Filter by member"
+              value={memberFilter}
+              onChange={(event) => setMemberFilter(event.target.value)}
+              className="h-10 min-w-0 cursor-pointer rounded-lg border border-ink/15 bg-cream px-2 text-[11.5px] font-semibold text-ink outline-none sm:w-[122px]"
+            >
+              <option value="all">All members</option>
+              {filterMemberIds.map((id) => (
+                <option key={id} value={id}>
+                  {memberByLabel(members, id)}{group.formerMembers.includes(id) ? ' (former)' : ''}
+                </option>
+              ))}
+            </select>
           </div>
-        ))}
+
+          <div className="overflow-hidden rounded-[18px] border border-ink/[.08] bg-cream px-3 sm:px-5">
+            {vm.expenseRows.length === 0 && (
+              <EmptyState
+                title={expenses.some((expense) => expense.gid === group.id) ? 'No matching activity' : 'No expenses yet'}
+                message={expenses.some((expense) => expense.gid === group.id) ? 'Adjust the filters to see more activity.' : 'Add an expense to start tracking this group.'}
+                className="min-h-[180px] py-10 sm:min-h-[200px]"
+              />
+            )}
+            {vm.expenseRows.map((e) => (
+              <div
+                key={e.id}
+                onClick={e.manageable ? () => setEditingExpenseId(e.id) : undefined}
+                className={`flex items-center gap-2.5 py-3 first:border-t-0 last:border-b-0 sm:gap-3 ${
+                  e.manageable
+                    ? '-mx-3 cursor-pointer border-t border-ink/[.06] px-3 transition-colors hover:bg-sand-2/70 sm:-mx-5 sm:px-5'
+                    : '-mx-3 border-y border-pos/25 bg-pos/10 px-3 sm:-mx-5 sm:px-5'
+                }`}
+              >
+                <span className="w-14 flex-none text-center sm:w-[58px]">
+                  <span className="block text-[10px] font-bold tracking-[.8px] text-mute-3">{e.mon}</span>
+                  <span className="block font-display text-[17px] font-bold text-mute-4">{e.day}</span>
+                  {e.time && <span className="mt-0.5 block whitespace-nowrap text-[9.5px] font-semibold text-mute">{e.time}</span>}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14px] font-bold [overflow-wrap:anywhere]">{e.desc}</span>
+                  <span className="mt-px block text-[12px] text-mute">{e.paidLine}</span>
+                </span>
+                <span className="flex-none whitespace-nowrap text-right [font-variant-numeric:tabular-nums]">
+                  <span className="block text-[11px] text-mute">{e.dirLabel}</span>
+                  <span className={`block text-[14px] font-bold ${toneText[e.tone]}`}>{e.shareFmt}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
       </div>
 
       {modal === 'expense' && <ExpenseModal group={group} onClose={() => setModal(null)} />}

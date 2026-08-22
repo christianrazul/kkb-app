@@ -170,6 +170,7 @@ export interface GroupBalanceVM {
   name: string
   initials: string
   color: string
+  dirLabel: string
   amtFmt: string
   tone: Tone
 }
@@ -233,12 +234,14 @@ export function groupView(
   const balances: GroupBalanceVM[] = group.members.map((id) => {
     const m = member(id)
     const net = netOf(id, gExps, cur)
+    const settled = Math.abs(net) < epsilon
     return {
       id,
-      name: m.name,
+      name: m.full,
       initials: initials(m.full),
       color: m.color,
-      amtFmt: balShort(net, epsilon, cur),
+      dirLabel: settled ? 'settled up' : net > 0 ? 'gets back' : 'owes',
+      amtFmt: settled ? '' : fmt(Math.abs(net), cur),
       tone: toneOf(net, epsilon),
     }
   })
@@ -301,7 +304,7 @@ export function groupView(
     name: group.name,
     initial: group.name[0],
     tile: group.tile,
-    meta: group.members.map((id) => member(id).name).join(', '),
+    meta: `${group.members.length} ${group.members.length === 1 ? 'member' : 'members'}`,
     balances,
     expenseRows,
   }
