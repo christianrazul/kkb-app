@@ -2,6 +2,7 @@ package com.kkb.group
 
 import com.kkb.auth.UserEntity
 import com.kkb.auth.UserRepository
+import com.kkb.balance.GroupBalanceService
 import com.kkb.invitation.EmailDeliveryStatus
 import com.kkb.invitation.EmailOutboxService
 import com.kkb.invitation.InvitationEmailComposer
@@ -24,6 +25,7 @@ class GroupApplicationService(
     private val tokenGenerator: InvitationTokenGenerator,
     private val emailComposer: InvitationEmailComposer,
     private val emailOutboxService: EmailOutboxService,
+    private val groupBalanceService: GroupBalanceService,
     private val clock: Clock,
     @Value("\${app.frontend-url}") frontendUrl: String,
 ) {
@@ -31,7 +33,7 @@ class GroupApplicationService(
 
     @Transactional(readOnly = true)
     fun list(actorUserId: UUID): List<GroupRecord> =
-        groupMemberRepository.findAllByUserIdOrderByJoinedAt(actorUserId)
+        groupMemberRepository.findAllByUserIdAndRemovedAtIsNullOrderByJoinedAt(actorUserId)
             .mapNotNull { membership -> groupRepository.findById(membership.groupId).orElse(null) }
             .map { group -> assemble(group, actorUserId) }
 
@@ -82,7 +84,9 @@ class GroupApplicationService(
         val existingUser = userRepository.findByEmailIgnoreCase(email)
         val invitationToken = tokenGenerator.generate()
 
-        if (existingUser != null && groupMemberRepository.existsByGroupIdAndUserId(groupId, existingUser.id)) {
+        if (existingUser != null &&
+            groupMemberRepository.existsByGroupIdAndUserIdAndRemovedAtIsNull(groupId, existingUser.id)
+        ) {
             throw ApiException(HttpStatus.CONFLICT, "already_group_member", "This user is already a group member")
         }
 
@@ -140,17 +144,30 @@ class GroupApplicationService(
     @Transactional
     fun removeMember(groupId: UUID, memberUserId: UUID, actorUserId: UUID): GroupRecord {
         requireOwner(groupId, actorUserId)
-        val membership = groupMemberRepository.findByGroupIdAndUserId(groupId, memberUserId)
+        val membership = groupMemberRepository.findByGroupIdAndUserIdAndRemovedAtIsNull(groupId, memberUserId)
             ?: throw ApiException(HttpStatus.NOT_FOUND, "member_not_found", "Group member was not found")
         if (membership.role == GroupRole.OWNER.name) {
             throw ApiException(HttpStatus.CONFLICT, "owner_cannot_be_removed", "The group owner cannot be removed")
         }
-        groupMemberRepository.delete(membership)
+        val balance = groupBalanceService.calculate(groupId, actorUserId)
+            .balances
+            .firstOrNull { it.userId == memberUserId }
+            ?.phpAmountMinor
+            ?: 0L
+        if (balance != 0L) {
+            throw ApiException(
+                HttpStatus.CONFLICT,
+                "member_balance_outstanding",
+                "Settle this member's balance before removing them",
+            )
+        }
+        membership.removedAt = Instant.now(clock)
+        groupMemberRepository.save(membership)
         return assemble(requireGroup(groupId), actorUserId)
     }
 
     private fun requireOwner(groupId: UUID, actorUserId: UUID) {
-        val membership = groupMemberRepository.findByGroupIdAndUserId(groupId, actorUserId)
+        val membership = groupMemberRepository.findByGroupIdAndUserIdAndRemovedAtIsNull(groupId, actorUserId)
         if (membership?.role != GroupRole.OWNER.name) {
             throw ApiException(HttpStatus.NOT_FOUND, "group_not_found", "Group was not found")
         }
@@ -165,8 +182,10 @@ class GroupApplicationService(
         ?: throw ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "invalid_group_name", "Group name is required")
 
     private fun assemble(group: ExpenseGroupEntity, actorUserId: UUID): GroupRecord {
-        val memberships = groupMemberRepository.findAllByGroupIdOrderByJoinedAt(group.id)
-        val usersById = userRepository.findAllById(memberships.map(GroupMemberEntity::userId))
+        val allMemberships = groupMemberRepository.findAllByGroupIdOrderByJoinedAt(group.id)
+        val memberships = allMemberships.filter { it.removedAt == null }
+        val formerMemberships = allMemberships.filter { it.removedAt != null }
+        val usersById = userRepository.findAllById(allMemberships.map(GroupMemberEntity::userId))
             .associateBy(UserEntity::id)
         val actorIsOwner = memberships.any { it.userId == actorUserId && it.role == GroupRole.OWNER.name }
         val pendingInvites = if (actorIsOwner) {
@@ -178,6 +197,9 @@ class GroupApplicationService(
         return GroupRecord(
             group = group,
             members = memberships.map { membership ->
+                GroupMemberRecord(membership, requireNotNull(usersById[membership.userId]))
+            },
+            formerMembers = formerMemberships.map { membership ->
                 GroupMemberRecord(membership, requireNotNull(usersById[membership.userId]))
             },
             pendingInvites = pendingInvites.map { invite ->
@@ -197,6 +219,7 @@ class GroupApplicationService(
 data class GroupRecord(
     val group: ExpenseGroupEntity,
     val members: List<GroupMemberRecord>,
+    val formerMembers: List<GroupMemberRecord>,
     val pendingInvites: List<GroupInviteRecord>,
     val actorIsOwner: Boolean,
 )

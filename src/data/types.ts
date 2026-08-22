@@ -42,8 +42,14 @@ export interface SettlementInput {
 export interface ExpenseRepository {
   load(): Promise<{ members: Member[]; groups: Group[]; expenses: Expense[] }>
   addExpense(input: NewExpenseInput): Promise<Expense>
+  updateExpense(expenseId: string, input: NewExpenseInput): Promise<Expense>
+  deleteExpense(groupId: string, expenseId: string): Promise<void>
   recordSettlement(input: SettlementInput): Promise<Expense>
   createGroup(name: string, tileColor: string): Promise<void>
+  updateGroup(groupId: string, name: string, tileColor: string): Promise<void>
+  deleteGroup(groupId: string): Promise<void>
   inviteMember(groupId: string, email: string): Promise<void>
+  revokeInvite(groupId: string, inviteId: string): Promise<void>
+  removeMember(groupId: string, memberId: string): Promise<void>
   inviteToKkb(email: string): Promise<{ inviteUrl: string; deliveryStatus: 'QUEUED' | 'SENT' | 'FAILED' }>
 }

@@ -11,13 +11,15 @@ class GroupAccessService(
     private val groupMemberRepository: GroupMemberRepository,
 ) {
     fun requireMembership(groupId: UUID, userId: UUID) {
-        if (!groupRepository.existsById(groupId) || !groupMemberRepository.existsByGroupIdAndUserId(groupId, userId)) {
+        if (!groupRepository.existsById(groupId) ||
+            !groupMemberRepository.existsByGroupIdAndUserIdAndRemovedAtIsNull(groupId, userId)
+        ) {
             throw ApiException(HttpStatus.NOT_FOUND, "group_not_found", "Group was not found")
         }
     }
 
     fun memberIds(groupId: UUID): Set<UUID> =
-        groupMemberRepository.findUserIdsByGroupId(groupId).toSet()
+        groupMemberRepository.findActiveUserIdsByGroupId(groupId).toSet()
 
     fun requireExpenseMembers(groupId: UUID, paidByUserId: UUID, participantIds: List<UUID>) {
         val memberIds = memberIds(groupId)

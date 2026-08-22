@@ -115,6 +115,7 @@ data class GroupResponse(
     val tileColor: String,
     val owner: Boolean,
     val members: List<GroupMemberResponse>,
+    val formerMembers: List<GroupMemberResponse>,
     val pendingInvites: List<GroupInviteResponse>,
 )
 
@@ -140,6 +141,15 @@ private fun GroupRecord.toResponse() = GroupResponse(
     tileColor = group.tileColor,
     owner = actorIsOwner,
     members = members.map { record ->
+        GroupMemberResponse(
+            userId = record.user.id,
+            displayName = record.user.displayName,
+            email = record.user.email,
+            avatarUrl = record.user.avatarUrl,
+            role = record.membership.role,
+        )
+    },
+    formerMembers = formerMembers.map { record ->
         GroupMemberResponse(
             userId = record.user.id,
             displayName = record.user.displayName,

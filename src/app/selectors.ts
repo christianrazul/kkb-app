@@ -169,6 +169,15 @@ export interface GroupExpenseVM {
   dirLabel: string
   shareFmt: string
   tone: Tone
+  manageable: boolean
+}
+
+export type ExpenseSort = 'newest' | 'oldest' | 'highest' | 'lowest'
+
+export interface GroupExpenseListOptions {
+  sort: ExpenseSort
+  currency: CurrencyCode | 'all'
+  memberId: string | 'all'
 }
 
 export interface GroupVM {
@@ -188,9 +197,23 @@ export function groupView(
   meId: string,
   epsilon: number,
   originalCurrency: boolean,
+  listOptions: GroupExpenseListOptions = { sort: 'newest', currency: 'all', memberId: 'all' },
 ): GroupVM {
   const member = byId(members)
   const gExps = expenses.filter((e) => e.gid === group.id).sort(newestFirst)
+  const listedExpenses = gExps
+    .filter((expense) => listOptions.currency === 'all' || expense.cur === listOptions.currency)
+    .filter((expense) => (
+      listOptions.memberId === 'all' ||
+      expense.paidBy === listOptions.memberId ||
+      expense.parts.includes(listOptions.memberId)
+    ))
+    .sort((a, b) => {
+      if (listOptions.sort === 'oldest') return -newestFirst(a, b)
+      if (listOptions.sort === 'highest') return b.phpAmount - a.phpAmount || newestFirst(a, b)
+      if (listOptions.sort === 'lowest') return a.phpAmount - b.phpAmount || newestFirst(a, b)
+      return newestFirst(a, b)
+    })
 
   const balances: GroupBalanceVM[] = group.members.map((id) => {
     const m = member(id)
@@ -205,7 +228,7 @@ export function groupView(
     }
   })
 
-  const expenseRows: GroupExpenseVM[] = gExps.map((e) => {
+  const expenseRows: GroupExpenseVM[] = listedExpenses.map((e) => {
     const d = dateBits(e.date)
     const rowCur = originalCurrency ? e.cur : cur
     const total = originalCurrency ? e.amount : conv(e.phpAmount, 'PHP', cur)
@@ -254,6 +277,7 @@ export function groupView(
       dirLabel,
       shareFmt,
       tone,
+      manageable: !e.settle,
     }
   })
 

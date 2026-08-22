@@ -47,12 +47,16 @@ Historical and daily rates come from the free Frankfurter v2 API. Missing histor
 Authenticated routes include:
 
 - `GET` and `POST /api/groups`
+- `PATCH` and `DELETE /api/groups/{groupId}`
 - `POST /api/groups/{groupId}/invites`
+- `DELETE /api/groups/{groupId}/invites/{inviteId}`
+- `DELETE /api/groups/{groupId}/members/{memberUserId}`
 - `GET /api/invitations/groups/{token}`
 - `POST /api/invitations/groups/{token}/accept`
 - `POST /api/invitations/groups/{token}/decline`
 - `POST /api/invitations/kkb`
 - `GET` and `POST /api/groups/{groupId}/expenses`
+- `PUT` and `DELETE /api/groups/{groupId}/expenses/{expenseId}`
 - `GET` and `POST /api/groups/{groupId}/settlements`
 - `GET /api/groups/{groupId}/balances`
 - `GET /api/fx/rates?date=YYYY-MM-DD`

@@ -34,7 +34,7 @@ class SeedDataLoginHook(
     private val clock: Clock,
 ) : UserLoginHook {
     override fun afterLogin(user: UserEntity) {
-        if (groupMemberRepository.findAllByUserIdOrderByJoinedAt(user.id).isNotEmpty()) return
+        if (groupMemberRepository.findAllByUserIdAndRemovedAtIsNullOrderByJoinedAt(user.id).isNotEmpty()) return
 
         val now = Instant.now(clock)
         val date = LocalDate.now(clock).minusDays(1)

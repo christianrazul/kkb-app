@@ -8,6 +8,7 @@ import { Activity } from './app/routes/Activity'
 import { Privacy, Terms } from './app/routes/Legal'
 import { GroupInvitation } from './app/routes/GroupInvitation'
 import { KkbInvitation } from './app/routes/KkbInvitation'
+import { GroupSettings } from './app/routes/GroupSettings'
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/groups/:groupId" element={<GroupDetail />} />
+          <Route path="/groups/:groupId/settings" element={<GroupSettings />} />
           <Route path="/activity" element={<Activity />} />
         </Route>
       </Route>

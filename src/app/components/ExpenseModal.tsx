@@ -7,7 +7,7 @@ import { useCurrency } from '../providers/CurrencyProvider'
 import { useAuth } from '../providers/AuthProvider'
 import { useData } from '../providers/DataProvider'
 import { fmt } from '@/domain/currency'
-import type { CurrencyCode, Group } from '@/domain/types'
+import type { CurrencyCode, Expense, Group } from '@/domain/types'
 import { todayIso } from '@/domain/format'
 
 const selectCls =
@@ -16,22 +16,32 @@ const fieldLabel = 'flex flex-col gap-1.5 text-[11.5px] font-bold tracking-[.5px
 
 interface ExpenseModalProps {
   group: Group
+  expense?: Expense
   onClose: () => void
 }
 
-export function ExpenseModal({ group, onClose }: ExpenseModalProps) {
+export function ExpenseModal({ group, expense, onClose }: ExpenseModalProps) {
   const { cur } = useCurrency()
   const { meId } = useAuth()
-  const { memberById, addExpense } = useData()
+  const { memberById, addExpense, updateExpense } = useData()
 
-  const [desc, setDesc] = useState('')
-  const [amount, setAmount] = useState('')
-  const [fCur, setFCur] = useState<CurrencyCode>(cur)
-  const [paidBy, setPaidBy] = useState(meId)
-  const [parts, setParts] = useState<string[]>(group.members)
-  const [date, setDate] = useState(todayIso())
+  const [desc, setDesc] = useState(expense?.desc ?? '')
+  const [amount, setAmount] = useState(expense ? String(expense.amount) : '')
+  const [fCur, setFCur] = useState<CurrencyCode>(expense?.cur ?? cur)
+  const [paidBy, setPaidBy] = useState(
+    expense && group.members.includes(expense.paidBy) ? expense.paidBy : meId,
+  )
+  const [parts, setParts] = useState<string[]>(() => {
+    if (!expense) return group.members
+    const activeParts = expense.parts.filter((id) => group.members.includes(id))
+    return activeParts.length > 0 ? activeParts : group.members
+  })
+  const [date, setDate] = useState(expense?.date ?? todayIso())
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const includesFormerMember = Boolean(expense && (
+    !group.members.includes(expense.paidBy) || expense.parts.some((id) => !group.members.includes(id))
+  ))
 
   const amt = parseFloat(amount)
   const valid = desc.trim().length > 0 && amt > 0 && parts.length > 0
@@ -45,7 +55,9 @@ export function ExpenseModal({ group, onClose }: ExpenseModalProps) {
     setSaving(true)
     setError(null)
     try {
-      await addExpense({ gid: group.id, desc: desc.trim(), amount: amount.trim(), cur: fCur, paidBy, parts, date })
+      const input = { gid: group.id, desc: desc.trim(), amount: amount.trim(), cur: fCur, paidBy, parts, date }
+      if (expense) await updateExpense(expense.id, input)
+      else await addExpense(input)
       onClose()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not save the expense')
@@ -55,13 +67,16 @@ export function ExpenseModal({ group, onClose }: ExpenseModalProps) {
 
   return (
     <Modal onClose={onClose}>
-      <div className="mb-4 font-display text-[18px] font-bold [overflow-wrap:anywhere]">Add expense · {group.name}</div>
+      <div className="mb-4 font-display text-[18px] font-bold [overflow-wrap:anywhere]">
+        {expense ? 'Edit expense' : 'Add expense'} · {group.name}
+      </div>
       <div className="flex flex-col gap-3.5">
         <Field
           label="DESCRIPTION"
           value={desc}
           onChange={(e) => setDesc(e.target.value)}
           placeholder="e.g. Dinner at Mang Larry's"
+          maxLength={255}
         />
 
         <div className="grid grid-cols-[minmax(0,1fr)_104px] gap-2.5 sm:flex">
@@ -124,9 +139,15 @@ export function ExpenseModal({ group, onClose }: ExpenseModalProps) {
           <div className="text-[12px] font-normal tracking-normal text-mute">{splitHint}</div>
         </div>
 
+        {includesFormerMember && (
+          <div className="rounded-xl border border-ink/10 bg-sand px-3.5 py-2.5 text-[12px] leading-relaxed text-mute-2">
+            This expense includes a former member. Saving will replace them with the active payer and participants selected above.
+          </div>
+        )}
+
         {error && <div className="text-[12.5px] font-semibold text-neg">{error}</div>}
         <Button onClick={submit} disabled={!valid || saving} className="mt-1 min-h-11 whitespace-nowrap p-[13px] text-[14px]">
-          {saving ? 'Saving…' : 'Save expense'}
+          {saving ? 'Saving…' : expense ? 'Save changes' : 'Save expense'}
         </Button>
       </div>
     </Modal>

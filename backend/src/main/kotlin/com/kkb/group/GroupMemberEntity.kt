@@ -28,6 +28,9 @@ class GroupMemberEntity(
 
     @Column(name = "joined_at", nullable = false, updatable = false)
     var joinedAt: Instant = Instant.now(),
+
+    @Column(name = "removed_at")
+    var removedAt: Instant? = null,
 )
 
 enum class GroupRole {

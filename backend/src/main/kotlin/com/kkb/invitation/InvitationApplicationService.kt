@@ -58,7 +58,8 @@ class InvitationApplicationService(
         }
 
         val now = Instant.now(clock)
-        if (!groupMemberRepository.existsByGroupIdAndUserId(invite.groupId, actor.id)) {
+        val existingMembership = groupMemberRepository.findByGroupIdAndUserId(invite.groupId, actor.id)
+        if (existingMembership == null) {
             groupMemberRepository.save(
                 GroupMemberEntity(
                     groupId = invite.groupId,
@@ -67,6 +68,10 @@ class InvitationApplicationService(
                     joinedAt = now,
                 ),
             )
+        } else if (existingMembership.removedAt != null) {
+            existingMembership.removedAt = null
+            existingMembership.role = GroupRole.MEMBER.name
+            groupMemberRepository.save(existingMembership)
         }
         invite.status = GroupInviteStatus.ACCEPTED.name
         invite.acceptedByUserId = actor.id

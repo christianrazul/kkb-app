@@ -16,6 +16,8 @@ interface DataState {
 type DataAction =
   | { type: 'loaded'; payload: { members: Member[]; groups: Group[]; expenses: Expense[] } }
   | { type: 'expenseAdded'; payload: Expense }
+  | { type: 'expenseUpdated'; payload: Expense }
+  | { type: 'expenseDeleted'; payload: string }
   | { type: 'reset' }
   | { type: 'failed'; payload: string }
 
@@ -25,6 +27,10 @@ function reducer(state: DataState, action: DataAction): DataState {
       return { ...action.payload, loaded: true, error: null }
     case 'expenseAdded':
       return { ...state, expenses: [...state.expenses, action.payload] }
+    case 'expenseUpdated':
+      return { ...state, expenses: state.expenses.map((expense) => expense.id === action.payload.id ? action.payload : expense) }
+    case 'expenseDeleted':
+      return { ...state, expenses: state.expenses.filter((expense) => expense.id !== action.payload) }
     case 'reset':
       return initialState
     case 'failed':
@@ -36,9 +42,15 @@ interface DataContextValue extends DataState {
   memberById: (id: string) => Member | undefined
   groupById: (id: string) => Group | undefined
   addExpense: (input: NewExpenseInput) => Promise<void>
+  updateExpense: (expenseId: string, input: NewExpenseInput) => Promise<void>
+  deleteExpense: (groupId: string, expenseId: string) => Promise<void>
   recordSettlement: (input: SettlementInput) => Promise<void>
   createGroup: (name: string, tileColor: string) => Promise<void>
+  updateGroup: (groupId: string, name: string, tileColor: string) => Promise<void>
+  deleteGroup: (groupId: string) => Promise<void>
   inviteMember: (groupId: string, email: string) => Promise<void>
+  revokeInvite: (groupId: string, inviteId: string) => Promise<void>
+  removeMember: (groupId: string, memberId: string) => Promise<void>
   inviteToKkb: (email: string) => Promise<{ inviteUrl: string; deliveryStatus: 'QUEUED' | 'SENT' | 'FAILED' }>
   refresh: () => Promise<void>
 }
@@ -86,6 +98,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const rec = await expenseRepository.addExpense(input)
         dispatch({ type: 'expenseAdded', payload: rec })
       },
+      updateExpense: async (expenseId, input) => {
+        const rec = await expenseRepository.updateExpense(expenseId, input)
+        dispatch({ type: 'expenseUpdated', payload: rec })
+      },
+      deleteExpense: async (groupId, expenseId) => {
+        await expenseRepository.deleteExpense(groupId, expenseId)
+        dispatch({ type: 'expenseDeleted', payload: expenseId })
+      },
       recordSettlement: async (input) => {
         const rec = await expenseRepository.recordSettlement(input)
         dispatch({ type: 'expenseAdded', payload: rec })
@@ -94,8 +114,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
         await expenseRepository.createGroup(name, tileColor)
         await load()
       },
+      updateGroup: async (groupId, name, tileColor) => {
+        await expenseRepository.updateGroup(groupId, name, tileColor)
+        await load()
+      },
+      deleteGroup: async (groupId) => {
+        await expenseRepository.deleteGroup(groupId)
+        await load()
+      },
       inviteMember: async (groupId, email) => {
         await expenseRepository.inviteMember(groupId, email)
+        await load()
+      },
+      revokeInvite: async (groupId, inviteId) => {
+        await expenseRepository.revokeInvite(groupId, inviteId)
+        await load()
+      },
+      removeMember: async (groupId, memberId) => {
+        await expenseRepository.removeMember(groupId, memberId)
         await load()
       },
       inviteToKkb: (email) => expenseRepository.inviteToKkb(email),

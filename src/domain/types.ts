@@ -26,6 +26,8 @@ export interface Group {
   tile: string
   /** Member ids belonging to the group. */
   members: string[]
+  /** Removed member ids retained so historical activity remains readable. */
+  formerMembers: string[]
   owner: boolean
   pendingInvites: PendingInvite[]
 }

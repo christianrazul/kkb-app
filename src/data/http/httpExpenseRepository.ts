@@ -15,6 +15,12 @@ interface GroupApiResponse {
     email: string
     avatarUrl?: string
   }>
+  formerMembers?: Array<{
+    userId: string
+    displayName: string
+    email: string
+    avatarUrl?: string
+  }>
   pendingInvites: Array<{
     id: string
     email: string
@@ -76,6 +82,7 @@ function mapGroup(group: GroupApiResponse): Group {
     name: group.name,
     tile: group.tileColor,
     members: group.members.map((member) => member.userId),
+    formerMembers: (group.formerMembers ?? []).map((member) => member.userId),
     owner: group.owner,
     pendingInvites: group.pendingInvites,
   }
@@ -133,7 +140,7 @@ export class HttpExpenseRepository implements ExpenseRepository {
       return [...expenses.map(mapExpense), ...settlements.map(mapSettlement)]
     }))
     const membersById = new Map<string, Member>()
-    groupResponses.flatMap((group) => group.members).forEach((member) => {
+    groupResponses.flatMap((group) => [...group.members, ...(group.formerMembers ?? [])]).forEach((member) => {
       membersById.set(member.userId, mapMember(member))
     })
 
@@ -159,6 +166,25 @@ export class HttpExpenseRepository implements ExpenseRepository {
     return mapExpense(response)
   }
 
+  async updateExpense(expenseId: string, input: NewExpenseInput): Promise<Expense> {
+    const response = await request<ExpenseApiResponse>(`/api/groups/${input.gid}/expenses/${expenseId}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        description: input.desc,
+        amount: input.amount,
+        currency: input.cur,
+        paidByUserId: input.paidBy,
+        participantIds: input.parts,
+        expenseDate: input.date,
+      }),
+    })
+    return mapExpense(response)
+  }
+
+  async deleteExpense(groupId: string, expenseId: string): Promise<void> {
+    await request(`/api/groups/${groupId}/expenses/${expenseId}`, { method: 'DELETE' })
+  }
+
   async recordSettlement(input: SettlementInput): Promise<Expense> {
     const fractionDigits = input.cur === 'JPY' ? 0 : 2
     const response = await request<SettlementApiResponse>(`/api/groups/${input.gid}/settlements`, {
@@ -181,11 +207,30 @@ export class HttpExpenseRepository implements ExpenseRepository {
     })
   }
 
+  async updateGroup(groupId: string, name: string, tileColor: string): Promise<void> {
+    await request(`/api/groups/${groupId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name, tileColor }),
+    })
+  }
+
+  async deleteGroup(groupId: string): Promise<void> {
+    await request(`/api/groups/${groupId}`, { method: 'DELETE' })
+  }
+
   async inviteMember(groupId: string, email: string): Promise<void> {
     await request(`/api/groups/${groupId}/invites`, {
       method: 'POST',
       body: JSON.stringify({ email }),
     })
+  }
+
+  async revokeInvite(groupId: string, inviteId: string): Promise<void> {
+    await request(`/api/groups/${groupId}/invites/${inviteId}`, { method: 'DELETE' })
+  }
+
+  async removeMember(groupId: string, memberId: string): Promise<void> {
+    await request(`/api/groups/${groupId}/members/${memberId}`, { method: 'DELETE' })
   }
 
   async inviteToKkb(email: string): Promise<{ inviteUrl: string; deliveryStatus: 'QUEUED' | 'SENT' | 'FAILED' }> {

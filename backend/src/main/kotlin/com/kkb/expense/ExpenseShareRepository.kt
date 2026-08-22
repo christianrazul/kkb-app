@@ -5,4 +5,5 @@ import java.util.UUID
 
 interface ExpenseShareRepository : JpaRepository<ExpenseShareEntity, UUID> {
     fun findAllByExpenseIdIn(expenseIds: Collection<UUID>): List<ExpenseShareEntity>
+    fun deleteAllByExpenseId(expenseId: UUID)
 }

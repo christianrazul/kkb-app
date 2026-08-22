@@ -26,6 +26,54 @@ class ExpenseApplicationService(
 ) {
     fun create(groupId: UUID, actorUserId: UUID, command: CreateExpenseCommand): ExpenseRecord {
         groupAccessService.requireMembership(groupId, actorUserId)
+        val prepared = prepare(groupId, command)
+
+        return transactionWriter.persist(
+            groupId = groupId,
+            actorUserId = actorUserId,
+            description = prepared.description,
+            originalAmountMinor = prepared.originalAmountMinor,
+            currency = prepared.currency,
+            phpAmountMinor = prepared.phpAmountMinor,
+            snapshot = prepared.snapshot,
+            paidByUserId = command.paidByUserId,
+            participantIds = command.participantIds,
+            expenseDate = command.expenseDate,
+        )
+    }
+
+    fun update(
+        groupId: UUID,
+        expenseId: UUID,
+        actorUserId: UUID,
+        command: CreateExpenseCommand,
+    ): ExpenseRecord {
+        groupAccessService.requireMembership(groupId, actorUserId)
+        val expense = requireExpense(groupId, expenseId)
+        val prepared = prepare(groupId, command)
+
+        return transactionWriter.update(
+            expense = expense,
+            groupId = groupId,
+            actorUserId = actorUserId,
+            description = prepared.description,
+            originalAmountMinor = prepared.originalAmountMinor,
+            currency = prepared.currency,
+            phpAmountMinor = prepared.phpAmountMinor,
+            snapshot = prepared.snapshot,
+            paidByUserId = command.paidByUserId,
+            participantIds = command.participantIds,
+            expenseDate = command.expenseDate,
+        )
+    }
+
+    @Transactional
+    fun delete(groupId: UUID, expenseId: UUID, actorUserId: UUID) {
+        groupAccessService.requireMembership(groupId, actorUserId)
+        expenseRepository.delete(requireExpense(groupId, expenseId))
+    }
+
+    private fun prepare(groupId: UUID, command: CreateExpenseCommand): PreparedExpense {
 
         val description = command.description.trim()
         if (description.isEmpty() || description.length > 255) {
@@ -70,18 +118,23 @@ class ExpenseApplicationService(
             throw ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "amount_too_large", "Converted amount is too large")
         }
 
-        return transactionWriter.persist(
-            groupId = groupId,
-            actorUserId = actorUserId,
+        return PreparedExpense(
             description = description,
             originalAmountMinor = originalAmountMinor,
             currency = currency,
             phpAmountMinor = phpAmountMinor,
             snapshot = snapshot,
-            paidByUserId = command.paidByUserId,
-            participantIds = command.participantIds,
-            expenseDate = command.expenseDate,
         )
+    }
+
+    private fun requireExpense(groupId: UUID, expenseId: UUID): ExpenseEntity {
+        val expense = expenseRepository.findById(expenseId).orElseThrow {
+            ApiException(HttpStatus.NOT_FOUND, "expense_not_found", "Expense was not found")
+        }
+        if (expense.groupId != groupId) {
+            throw ApiException(HttpStatus.NOT_FOUND, "expense_not_found", "Expense was not found")
+        }
+        return expense
     }
 
     @Transactional(readOnly = true)
@@ -105,6 +158,14 @@ class ExpenseApplicationService(
         }
     }
 }
+
+private data class PreparedExpense(
+    val description: String,
+    val originalAmountMinor: Long,
+    val currency: SupportedCurrency,
+    val phpAmountMinor: Long,
+    val snapshot: FxRateSnapshotEntity,
+)
 
 data class CreateExpenseCommand(
     val description: String,
@@ -158,22 +219,66 @@ class ExpenseTransactionWriter(
             ),
         )
 
-        val originalShares = splitEvenly(originalAmountMinor, participantIds)
-        val phpShares = splitEvenly(phpAmountMinor, participantIds)
-        val shares = participantIds.sorted().map { participantId ->
-            ExpenseShareEntity(
-                expenseId = expense.id,
-                userId = participantId,
-                originalAmountMinor = requireNotNull(originalShares[participantId]),
-                phpAmountMinor = requireNotNull(phpShares[participantId]),
-            )
-        }
+        val shares = buildShares(expense.id, originalAmountMinor, phpAmountMinor, participantIds)
 
         return ExpenseRecord(
             expense = expense,
             shares = expenseShareRepository.saveAll(shares),
             snapshot = snapshot,
         )
+    }
+
+    @Transactional
+    fun update(
+        expense: ExpenseEntity,
+        groupId: UUID,
+        actorUserId: UUID,
+        description: String,
+        originalAmountMinor: Long,
+        currency: SupportedCurrency,
+        phpAmountMinor: Long,
+        snapshot: FxRateSnapshotEntity,
+        paidByUserId: UUID,
+        participantIds: List<UUID>,
+        expenseDate: LocalDate,
+    ): ExpenseRecord {
+        groupAccessService.requireMembership(groupId, actorUserId)
+        groupAccessService.requireExpenseMembers(groupId, paidByUserId, participantIds)
+
+        expense.description = description
+        expense.originalAmountMinor = originalAmountMinor
+        expense.originalCurrency = currency.name
+        expense.fxRateSnapshotId = snapshot.id
+        expense.phpAmountMinor = phpAmountMinor
+        expense.paidByUserId = paidByUserId
+        expense.expenseDate = expenseDate
+        val savedExpense = expenseRepository.save(expense)
+
+        expenseShareRepository.deleteAllByExpenseId(expense.id)
+        expenseShareRepository.flush()
+        val shares = expenseShareRepository.saveAll(
+            buildShares(expense.id, originalAmountMinor, phpAmountMinor, participantIds),
+        )
+
+        return ExpenseRecord(savedExpense, shares, snapshot)
+    }
+
+    private fun buildShares(
+        expenseId: UUID,
+        originalAmountMinor: Long,
+        phpAmountMinor: Long,
+        participantIds: List<UUID>,
+    ): List<ExpenseShareEntity> {
+        val originalShares = splitEvenly(originalAmountMinor, participantIds)
+        val phpShares = splitEvenly(phpAmountMinor, participantIds)
+        return participantIds.sorted().map { participantId ->
+            ExpenseShareEntity(
+                expenseId = expenseId,
+                userId = participantId,
+                originalAmountMinor = requireNotNull(originalShares[participantId]),
+                phpAmountMinor = requireNotNull(phpShares[participantId]),
+            )
+        }
     }
 
     private fun splitEvenly(totalMinor: Long, participantIds: List<UUID>): Map<UUID, Long> {

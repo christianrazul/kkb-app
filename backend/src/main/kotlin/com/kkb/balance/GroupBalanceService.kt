@@ -22,7 +22,7 @@ class GroupBalanceService(
     @Transactional(readOnly = true)
     fun calculate(groupId: UUID, actorUserId: UUID): GroupBalanceRecord {
         groupAccessService.requireMembership(groupId, actorUserId)
-        val memberIds = groupMemberRepository.findUserIdsByGroupId(groupId).sorted()
+        val memberIds = groupMemberRepository.findActiveUserIdsByGroupId(groupId).sorted()
         val balances = memberIds.associateWith { 0L }.toMutableMap()
         val expenses = expenseRepository.findAllByGroupIdOrderByExpenseDateDescCreatedAtDesc(groupId)
         val shares = if (expenses.isEmpty()) {

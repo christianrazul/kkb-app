@@ -312,6 +312,160 @@ class ExpenseApplicationServicePostgresTests @Autowired constructor(
         assertEquals(0L, after.balances.sumOf { it.phpAmountMinor })
     }
 
+    @Test
+    fun `group members can update and delete expenses`() {
+        val fixture = createGroupFixture()
+        exchangeRateClient.reset()
+        val created = expenseApplicationService.create(
+            groupId = fixture.groupId,
+            actorUserId = fixture.users.first(),
+            command = CreateExpenseCommand(
+                description = "Dinner",
+                amount = "9.00",
+                currency = SupportedCurrency.PHP.name,
+                paidByUserId = fixture.users.first(),
+                participantIds = fixture.users,
+                expenseDate = LocalDate.of(2025, 3, 7),
+            ),
+        )
+
+        val updated = expenseApplicationService.update(
+            groupId = fixture.groupId,
+            expenseId = created.expense.id,
+            actorUserId = fixture.users[1],
+            command = CreateExpenseCommand(
+                description = "Updated dinner",
+                amount = "10.01",
+                currency = SupportedCurrency.USD.name,
+                paidByUserId = fixture.users[1],
+                participantIds = fixture.users.take(2),
+                expenseDate = LocalDate.of(2025, 3, 8),
+            ),
+        )
+
+        assertEquals(created.expense.id, updated.expense.id)
+        assertEquals("Updated dinner", updated.expense.description)
+        assertEquals(2, updated.shares.size)
+        assertEquals(1_001, updated.shares.sumOf(ExpenseShareEntity::originalAmountMinor))
+
+        expenseApplicationService.delete(fixture.groupId, created.expense.id, fixture.users[2])
+
+        assertEquals(emptyList<ExpenseRecord>(), expenseApplicationService.list(fixture.groupId, fixture.users.first()))
+    }
+
+    @Test
+    fun `expense mutations are hidden from users outside the group`() {
+        val fixture = createGroupFixture()
+        val outsider = createUser()
+        exchangeRateClient.reset()
+        val created = expenseApplicationService.create(
+            groupId = fixture.groupId,
+            actorUserId = fixture.users.first(),
+            command = CreateExpenseCommand(
+                description = "Dinner",
+                amount = "9.00",
+                currency = SupportedCurrency.PHP.name,
+                paidByUserId = fixture.users.first(),
+                participantIds = fixture.users,
+                expenseDate = LocalDate.of(2025, 3, 7),
+            ),
+        )
+
+        val updateException = assertThrows(ApiException::class.java) {
+            expenseApplicationService.update(
+                groupId = fixture.groupId,
+                expenseId = created.expense.id,
+                actorUserId = outsider,
+                command = CreateExpenseCommand(
+                    description = "Changed",
+                    amount = "9.00",
+                    currency = SupportedCurrency.PHP.name,
+                    paidByUserId = fixture.users.first(),
+                    participantIds = fixture.users,
+                    expenseDate = LocalDate.of(2025, 3, 7),
+                ),
+            )
+        }
+        val deleteException = assertThrows(ApiException::class.java) {
+            expenseApplicationService.delete(fixture.groupId, created.expense.id, outsider)
+        }
+
+        assertEquals("group_not_found", updateException.code)
+        assertEquals("group_not_found", deleteException.code)
+    }
+
+    @Test
+    fun `removing a settled member retains history and reinviting reactivates membership`() {
+        val fixture = createGroupFixture()
+        exchangeRateClient.reset()
+        val ownerId = fixture.users.first()
+        val memberId = fixture.users[1]
+        val memberEmail = userRepository.findById(memberId).orElseThrow().email
+        val date = LocalDate.of(2025, 3, 7)
+        expenseApplicationService.create(
+            groupId = fixture.groupId,
+            actorUserId = ownerId,
+            command = CreateExpenseCommand(
+                description = "Dinner",
+                amount = "9.00",
+                currency = SupportedCurrency.PHP.name,
+                paidByUserId = ownerId,
+                participantIds = fixture.users,
+                expenseDate = date,
+            ),
+        )
+
+        val outstanding = assertThrows(ApiException::class.java) {
+            groupApplicationService.removeMember(fixture.groupId, memberId, ownerId)
+        }
+        assertEquals("member_balance_outstanding", outstanding.code)
+
+        settlementApplicationService.create(
+            groupId = fixture.groupId,
+            actorUserId = ownerId,
+            command = CreateSettlementCommand(
+                fromUserId = memberId,
+                toUserId = ownerId,
+                amount = "3.00",
+                currency = SupportedCurrency.PHP.name,
+                settlementDate = date,
+            ),
+        )
+        val removed = groupApplicationService.removeMember(fixture.groupId, memberId, ownerId)
+        assertEquals(false, removed.members.any { it.user.id == memberId })
+        assertEquals(true, removed.formerMembers.any { it.user.id == memberId })
+
+        val invitation = groupApplicationService.invite(fixture.groupId, ownerId, memberEmail)
+            .pendingInvites
+            .single { it.invite.email == memberEmail }
+            .invite
+        invitationApplicationService.acceptGroupInvitation(invitation.token, memberId)
+
+        val reactivated = groupApplicationService.list(ownerId).single { it.group.id == fixture.groupId }
+        assertEquals(true, reactivated.members.any { it.user.id == memberId })
+        assertEquals(false, reactivated.formerMembers.any { it.user.id == memberId })
+    }
+
+    @Test
+    fun `only the owner can update and delete a group`() {
+        val fixture = createGroupFixture()
+        val ownerId = fixture.users.first()
+        val memberId = fixture.users[1]
+
+        val forbidden = assertThrows(ApiException::class.java) {
+            groupApplicationService.update(fixture.groupId, memberId, "Changed", "#c25e3a")
+        }
+        assertEquals("group_not_found", forbidden.code)
+
+        val updated = groupApplicationService.update(fixture.groupId, ownerId, "  Renamed group  ", "#c25e3a")
+        assertEquals("Renamed group", updated.group.name)
+        assertEquals("#c25e3a", updated.group.tileColor)
+
+        groupApplicationService.delete(fixture.groupId, ownerId)
+        assertEquals(false, groupRepository.existsById(fixture.groupId))
+        assertEquals(false, groupApplicationService.list(ownerId).any { it.group.id == fixture.groupId })
+    }
+
     private fun createGroupFixture(): GroupFixture {
         val users = List(3) { createUser() }.sorted()
         val groupId = groupRepository.save(
